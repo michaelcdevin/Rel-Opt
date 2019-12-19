@@ -1,5 +1,6 @@
 function[AnchorReliability] =...
-    Visualization(AnchorsOverstrengthened,OverstrengthFactor)
+    Visualization(AnchorsOverstrengthened,OverstrengthFactor,...
+    NRows, NCols, TurbSpacing, DesignType, NSims, theta)
 
 % Reliability_Compute determines the reliability of a multiline FOWT system
 % Spencer Hallowell, UMASS Amherst, 3/8/2018
@@ -14,16 +15,12 @@ function[AnchorReliability] =...
 Z3 = zeros(1,3); %Preallocated vector of zeros
 
 %% Some geometry and other intitialization variables
-Spacing = 837.6/(sqrt(3)/3); %Spacing of turbines
-Hypot = Spacing*sqrt(3)/3; %Hypotnuse between turbines
-NRows = 10; %Number of rows
-NCols = 10; %Number of columns
-NTurbs = NRows*NCols; %Number of turbines
-SegNum = [1,2,3,4,5,6]; %Line segment numbers (assumes line can fail in 6 places)
-DesignType = 'Real multi'; %Design philosophy used for lines and anchors (real means more safety factor, multi is multiline concept)
-NSims = 5000; %Number of Monte-Carlo simulations to run.
-theta = 0; %Incoming wind and wave direction.
-
+TADistance = TurbSpacing*(sqrt(3)/3); %Spacing of turbines
+NTurbs = round(NRows*NCols/2); %Number of turbines
+TurbSelect = zeros(NRows, NCols);
+TurbSelect(randperm(numel(TurbSelect), NTurbs)) = 1;
+NLineSegments = 6; %number of failure points in each mooring line
+SegNum = 1:NLineSegments; %Line segment numbers
 
 %% Load in results of FAST analyses. These matrices will have distribution
 %  Parameters (LN and Normal distributions) for anchor and line forces.
@@ -36,18 +33,18 @@ load(['Surge_',num2str(theta),'deg.mat'])
 % Allocate displacements in a matrix.
 D(1,1) = Displacements(1).Surge;
 D(1,2) = Displacements(1).Sway;
-D(2,1) = 418.8 + Displacements(2).Surge;
-D(2,2) = 0 +   + Displacements(2).Sway;
-D(3,1) = -209.4 + Displacements(3).Surge;
-D(3,2) = 362.7 + Displacements(3).Sway;
-D(4,1) = -209.4 + Displacements(4).Surge;
-D(4,2) = -362.7 + Displacements(4).Sway;
-D(5,1) = 418.8 + Displacements(5).Surge;
-D(5,2) = 725.4 + Displacements(5).Sway;
-D(6,1) = 418.8 + Displacements(6).Surge;
-D(6,2) = -725.4 + Displacements(6).Sway;
-D(7,1) = -837.6 + Displacements(6).Surge;
-D(7,2) = 0 + Displacements(6).Sway;
+D(2,1) = (.5*TADistance) + Displacements(2).Surge;
+D(2,2) = Displacements(2).Sway;
+D(3,1) = (-.25*TADistance) + Displacements(3).Surge;
+D(3,2) = (.25*TurbSpacing) + Displacements(3).Sway;
+D(4,1) = (-.25*TADistance) + Displacements(4).Surge;
+D(4,2) = (-.25*TurbSpacing) + Displacements(4).Sway;
+D(5,1) = (.5*TADistance) + Displacements(5).Surge;
+D(5,2) = (.5*TurbSpacing) + Displacements(5).Sway;
+D(6,1) = (.5*TADistance) + Displacements(6).Surge;
+D(6,2) = (-.5*TurbSpacing) + Displacements(6).Sway;
+D(7,1) = -TADistance + Displacements(6).Surge;
+D(7,2) = Displacements(6).Sway;
 
 %% Precompute line standard deviations
 [Res] = LineStdev(Res,SegNum); %Standard deviations of line forces assumed constant along length
@@ -58,7 +55,7 @@ D(7,2) = 0 + Displacements(6).Sway;
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchorTurbConnect,~,~,~,AnchAnchConnect,...
     LineAnchConnect,LineLineConnect,~,ALC] =...
-    Geo_Setup(NRows,NCols,Spacing,Hypot,NTurbs);
+    Geo_Setup(NRows,NCols,TurbSpacing,TADistance,NTurbs,TurbSelect);
 
 ZNTurbs_3 = zeros(NAnchs,3); %Preallocated matrix of zeros
 TurbXOriginal = TurbX; %Original location of the turbines
@@ -99,19 +96,19 @@ TurbList = 1:NTurbs; %List of turbine numbers
 TACx = AnchorX(TurbAnchConnect); %Rearrance connectivity
 TACy = AnchorY(TurbAnchConnect);
 tt = repmat(1:NTurbs,3,1); %Lists of vectors
-CS = load('OriginalCosines.mat'); %Precomputed cosines and sines
-C1 = CS.C1;
-C2 = CS.C2;
-C3 = CS.C3;
-S1 = CS.S1;
-S2 = CS.S2;
-S3 = CS.S3;
-% C1 = -.5.*ones(size(ZNTurbs_3));
-% C2 = ones(size(ZNTurbs_3));
-% C3 = -.5.*ones(size(ZNTurbs_3));
-% S1 = -.866.*ones(size(ZNTurbs_3));
-% S2 = ZNTurbs_3;
-% S3 = .866.*ones(size(ZNTurbs_3));
+% CS = load('OriginalCosines.mat'); %Precomputed cosines and sines
+% C1 = CS.C1;
+% C2 = CS.C2;
+% C3 = CS.C3;
+% S1 = CS.S1;
+% S2 = CS.S2;
+% S3 = CS.S3;
+C1 = cosd(theta-120).*ones(size(ZNTurbs_3));
+C2 = cosd(theta).*ones(size(ZNTurbs_3));
+C3 = cosd(theta+120).*ones(size(ZNTurbs_3));
+S1 = sind(theta-120).*ones(size(ZNTurbs_3));
+S2 = sind(theta).*ones(size(ZNTurbs_3));
+S3 = sind(theta+120).*ones(size(ZNTurbs_3));
 
 ra = AnchorsOverstrengthened; %This gives the layout of the overstrengthened anchors (list form, with anchor #)
 LinesImpactedTemp = zeros(NLines,1);

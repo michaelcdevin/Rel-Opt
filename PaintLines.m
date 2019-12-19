@@ -7,7 +7,7 @@ hold all
 
 % Rotate joint coordinates to match anchors
 theta = 0;
-R = [cosd(-theta-90) -sind(-theta-90);sind(-theta-90),cosd(-theta-90)];
+R = [cosd(-theta-90) -sind(-theta-90);sind(-theta-90),cosd(-theta-90)]; %45 should be 90
 AA = [AnchorX,AnchorY];
 AA = AA*R;
 AnchorX = AA(:,1);

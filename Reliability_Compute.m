@@ -116,7 +116,7 @@ naf = zeros(NAnchs,1);
 nlf = zeros(NLines,1);
 
 
-parfor nn = 1:1:NSims %This can be run in parallel using parfor
+for nn = 1:1:NSims %This can be run in parallel using parfor
     TurbX_New = TurbX; %New orientation of turbines
     TurbY_New = TurbY;
     LinesImpacted = ones(NLines,1); %List of lines impacted
