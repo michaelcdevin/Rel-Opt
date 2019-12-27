@@ -19,6 +19,8 @@ TADistance = TurbSpacing*(sqrt(3)/3); %Spacing of turbines
 NTurbs = round(NRows*NCols/2); %Number of turbines
 TurbSelect = zeros(NRows, NCols);
 TurbSelect(randperm(numel(TurbSelect), NTurbs)) = 1;
+% NTurbs = NRows*NCols; %For testing completely filled array (i.e. orig.)
+% TurbSelect = ones(NRows,NCols); 
 NLineSegments = 6; %number of failure points in each mooring line
 SegNum = 1:NLineSegments; %Line segment numbers
 
@@ -55,8 +57,7 @@ D(7,2) = Displacements(6).Sway;
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchorTurbConnect,~,~,~,AnchAnchConnect,...
     LineAnchConnect,LineLineConnect,~,ALC] =...
-    Geo_Setup(NRows,NCols,TurbSpacing,TADistance,NTurbs,TurbSelect);
-
+    Geo_Setup(NRows,NCols,TurbSpacing,TADistance,NTurbs,TurbSelect,DesignType);
 ZNTurbs_3 = zeros(NAnchs,3); %Preallocated matrix of zeros
 TurbXOriginal = TurbX; %Original location of the turbines
 TurbYOriginal = TurbY;

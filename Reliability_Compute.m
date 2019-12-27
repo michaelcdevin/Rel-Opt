@@ -16,7 +16,11 @@ Z3 = zeros(1,3); %Preallocated vector of zeros
 
 %% Some geometry and other intitialization variables
 TADistance = TurbSpacing*(sqrt(3)/3); %Spacing of turbines
-NTurbs = NRows*NCols; %Number of turbines
+NTurbs = round(NRows*NCols/2); %Number of turbines
+TurbSelect = zeros(NRows, NCols);
+TurbSelect(randperm(numel(TurbSelect), NTurbs)) = 1;
+% NTurbs = NRows*NCols; %For testing completely filled array (i.e. orig.)
+% TurbSelect = ones(NRows,NCols); 
 NLineSegments = 6; %number of failure points in each mooring line
 SegNum = 1:NLineSegments; %Line segment numbers
 
@@ -52,7 +56,7 @@ D(7,2) = Displacements(6).Sway;
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchorTurbConnect,~,~,~,AnchAnchConnect,...
     LineAnchConnect,LineLineConnect,~,ALC] =...
-    Geo_Setup(NRows,NCols,TurbSpacing,TADistance,NTurbs);
+    Geo_Setup(NRows,NCols,TurbSpacing,TADistance,NTurbs,TurbSelect,DesignType);
 
 ZNTurbs_3 = zeros(NAnchs,3); %Preallocated matrix of zeros
 TurbXOriginal = TurbX; %Original location of the turbines
@@ -158,7 +162,7 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
             LinesImpacted,AnchorsImpacted,SegNum,LD_mu,LD_sigma,...
             R1,R2,R3,R4,R6,R7,R10,TurbX_New,TurbY_New,Z3,...
             tt,TACx,TACy,C1,C2,C3,S1,S2,S3,ZNTurbs_3);
-        
+
         % Is this the first step in the simulation?
         if count == 1
             LinesImpactedOld = LinesImpacted*0;
@@ -207,7 +211,7 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
 end
 
 TurbNAF = naf(TurbAnchConnect); %Turbines impacted by anchor failures
-TurbnafT = sum(TurbNAF,2)/100/NSims; %Failure rate of turbines.
+TurbnafT = sum(TurbNAF,2)/NTurbs/NSims; %Failure rate of turbines.
 ar = -norminv(1-(1-TurbnafT(1))*(1-TurbnafT(2))*(1-TurbnafT(3)));
 
 for j = 1:NAnchs

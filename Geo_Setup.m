@@ -2,7 +2,7 @@ function[TurbX,TurbY,AnchorXu,AnchorYu,AnchLineConnect,...
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchTurbConnect,LineFail,AnchorFail,TurbFail,AnchAnchConnect,...
     LineAnchConnect,LineLineConnect,LAC,ALC] =...
-    Geo_Setup(NRows,NCols,TurbSpacing,TADistance,NTurbs,TurbSelect)
+    Geo_Setup(NRows,NCols,TurbSpacing,TADistance,NTurbs,TurbSelect,DesignType)
 
 Angles = [180,300,420]; %Line angles
 
@@ -17,14 +17,21 @@ Count = 1;
 for j = 1:NRows    
     for i = 1:NCols
         if TurbSelect(j,i) == 1
-            TurbX(Count,1) = (i-1)*1.5*TADistance;
-            if mod(i,2) == 0
-                TurbY(Count,1) = (j-1)*TurbSpacing;
-%                 +TurbSpacing/2;
-            else
-                TurbY(Count,1) = (j-1)*TurbSpacing;
+            if strcmp(DesignType, 'Exact multi') || strcmp(DesignType, 'Real multi')
+                TurbX(Count,1) = (i-1)*1.5*TADistance;
+                if mod(i,2) == 0
+                    TurbY(Count,1) = (j-1)*TurbSpacing+TurbSpacing/2;
+                else
+                    TurbY(Count,1) = (j-1)*TurbSpacing;
+                end
+            elseif strcmp(DesignType, 'Exact single') || strcmp(DesignType, 'Real single')
+                TurbY(Count,1) = (i-1)*1.5*TADistance;
+                if mod(i,2) == 0
+                    TurbX(Count,1) = (j-1)*TurbSpacing+TurbSpacing/2;
+                else
+                    TurbX(Count,1) = (j-1)*TurbSpacing;
+                end
             end
-        
         AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
         AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
         Count = Count + 1;
@@ -39,6 +46,7 @@ XY = [AnchorXr,AnchorYr];
 XY = round(XY*1000000)/1000000;
 [~,ind] = unique(XY,'rows','first');
 XYu = XY(sort(ind),:);
+
 AnchorXu = XYu(:,1);
 AnchorYu = XYu(:,2);
 
