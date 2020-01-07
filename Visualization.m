@@ -1,6 +1,6 @@
 function[AnchorReliability] =...
-    Visualization(AnchorsOverstrengthened,OverstrengthFactor,...
-    NRows, NCols, TurbSpacing, DesignType, NSims, theta)
+    Visualization(AnchorsOverstrengthened, OverstrengthFactor,...
+    NTurbs, DefaultTurbSpacing, DesignType, NSims, theta)
 
 % Reliability_Compute determines the reliability of a multiline FOWT system
 % Spencer Hallowell, UMASS Amherst, 3/8/2018
@@ -14,13 +14,10 @@ function[AnchorReliability] =...
 
 Z3 = zeros(1,3); %Preallocated vector of zeros
 
-%% Some geometry and other intitialization variables
-TADistance = TurbSpacing*(sqrt(3)/3); %Spacing of turbines
-NTurbs = round(NRows*NCols/2); %Number of turbines
-TurbSelect = zeros(NRows, NCols);
-TurbSelect(randperm(numel(TurbSelect), NTurbs)) = 1;
-% NTurbs = NRows*NCols; %For testing completely filled array (i.e. orig.)
-% TurbSelect = ones(NRows,NCols); 
+%% Some geometry and other initialization variables
+TADistance = DefaultTurbSpacing*(sqrt(3)/3); %Spacing of turbines
+SiteX = sqrt(NTurbs*2)*DefaultTurbSpacing;
+SiteY = sqrt(NTurbs*2)*DefaultTurbSpacing;
 NLineSegments = 6; %number of failure points in each mooring line
 SegNum = 1:NLineSegments; %Line segment numbers
 
@@ -38,13 +35,13 @@ D(1,2) = Displacements(1).Sway;
 D(2,1) = (.5*TADistance) + Displacements(2).Surge;
 D(2,2) = Displacements(2).Sway;
 D(3,1) = (-.25*TADistance) + Displacements(3).Surge;
-D(3,2) = (.25*TurbSpacing) + Displacements(3).Sway;
+D(3,2) = (.25*DefaultTurbSpacing) + Displacements(3).Sway;
 D(4,1) = (-.25*TADistance) + Displacements(4).Surge;
-D(4,2) = (-.25*TurbSpacing) + Displacements(4).Sway;
+D(4,2) = (-.25*DefaultTurbSpacing) + Displacements(4).Sway;
 D(5,1) = (.5*TADistance) + Displacements(5).Surge;
-D(5,2) = (.5*TurbSpacing) + Displacements(5).Sway;
+D(5,2) = (.5*DefaultTurbSpacing) + Displacements(5).Sway;
 D(6,1) = (.5*TADistance) + Displacements(6).Surge;
-D(6,2) = (-.5*TurbSpacing) + Displacements(6).Sway;
+D(6,2) = (-.5*DefaultTurbSpacing) + Displacements(6).Sway;
 D(7,1) = -TADistance + Displacements(6).Surge;
 D(7,2) = Displacements(6).Sway;
 
@@ -57,7 +54,7 @@ D(7,2) = Displacements(6).Sway;
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchorTurbConnect,~,~,~,AnchAnchConnect,...
     LineAnchConnect,LineLineConnect,~,ALC] =...
-    Geo_Setup(NRows,NCols,TurbSpacing,TADistance,NTurbs,TurbSelect,DesignType);
+    Geo_Setup(SiteX,SiteY,TADistance,NTurbs);
 ZNTurbs_3 = zeros(NAnchs,3); %Preallocated matrix of zeros
 TurbXOriginal = TurbX; %Original location of the turbines
 TurbYOriginal = TurbY;
