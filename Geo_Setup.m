@@ -7,7 +7,7 @@ Angles = [180 300 420]; %Line angles
 rotorDiameter = 126;
 minTurbDist = rotorDiameter*10;
 minAnchDist = 500;
-eps = 1e-9;
+eps = 1e-9; %Machine epsilon to account for rounding errors
 lastConflicts = 0;
 
 %Preallocation of anchor and turbine coordinates
@@ -26,14 +26,16 @@ for j = 1:NTurbs
     % turbine, based on the turbine placement
     AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
     AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
+    % After the first iteration, turbine placements need to be compared to
+    % existing turbine locations to prevent turbines or anchors from being
+    % too close to each other (10 rotor diameters for turbines, 500 meters
+    % for anchors by default)
     if j > 1
-        TurbDists = abs(sqrt((TurbX(j) - TurbX(1:j-1)).^2 + (TurbY(j) - TurbY(1:j-1)).^2));
-        AnchDists = zeros(3*(j-1),3);
-        count = 1;
-        for k = 1:3
-            AnchDists(count:count+j-2,:) = abs(sqrt((AnchorX(j,k) - AnchorX(1:j-1,:)).^2 + (AnchorY(j,k) - AnchorY(1:j-1,:)).^2));
-            count = count+j-1;
-        end
+        [TurbDists,AnchDists] = ComponentDistance(TurbX(j),TurbX(1:j-1),...
+            TurbY(j),TurbY(1:j-1),AnchorX(j,:),AnchorX(1:j-1,:),...
+            AnchorY(j,:),AnchorY(1:j-1,:));
+        % If turbines are too close, move the current turbine to a random
+        % other location until all conflicts resolve
         if any(TurbDists < minTurbDist & TurbDists > eps) || any(AnchDists(:) < minAnchDist & AnchDists(:) > eps)
             conflicts = 1;
             while conflicts == 1
@@ -43,101 +45,24 @@ for j = 1:NTurbs
                     AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
                     AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
                 end
-                TurbDists = abs(sqrt((TurbX(j) - TurbX(1:j-1)).^2 + (TurbY(j) - TurbY(1:j-1)).^2));
-                count = 1;
-                for k = 1:3
-                     AnchDists(count:count+j-2,:) = abs(sqrt((AnchorX(j,k) - AnchorX(1:j-1,:)).^2 + (AnchorY(j,k) - AnchorY(1:j-1,:)).^2));
-                     count = count+j-1;
-                end
+                % Recalculate turbine and anchor distances to determine if
+                % all distance conflcits are resolved
+                [TurbDists,AnchDists] = ComponentDistance(TurbX(j),TurbX(1:j-1),...
+                    TurbY(j),TurbY(1:j-1),AnchorX(j,:),AnchorX(1:j-1,:),...
+                    AnchorY(j,:),AnchorY(1:j-1,:));
                 if all(TurbDists < eps | TurbDists > minTurbDist) && all(AnchDists(:) < eps | AnchDists(:) > minAnchDist)
                     conflicts = 0;
                 end
-                % Move anchors that are too close for the new turbine to
-                % match the location of the old conflicting anchor (i.e.
-                % share the anchor)
-                if any(AnchDists(:) < minAnchDist)
-                    currentConflicts = AnchDists(find(AnchDists < minAnchDist & AnchDists > eps));
-                    % If an anchor is caught between two other anchors less
-                    % than minAnchDist apart, pop it to a random other
-                    % location. This prevents an infinite loop from
-                    % occurring where the anchor switches back and forth
-                    % between the two nearby anchors
-                    if any(ismember(round(currentConflicts,4),round(lastConflicts,4)))
-                        TurbX(j) = SiteX*rand;
-                        TurbY(j) = SiteY*rand;
-                        AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
-                        AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
-                        TurbDists = abs(sqrt((TurbX(j) - TurbX(1:j-1)).^2 + (TurbY(j) - TurbY(1:j-1)).^2));
-                        count = 1;
-                        for k = 1:3
-                             AnchDists(count:count+j-2,:) = abs(sqrt((AnchorX(j,k) - AnchorX(1:j-1,:)).^2 + (AnchorY(j,k) - AnchorY(1:j-1,:)).^2));
-                             count = count+j-1;
-                        end
-                        if all(TurbDists < eps | TurbDists > minTurbDist) && all(AnchDists(:) < eps | AnchDists(:) > minAnchDist)
-                            conflicts = 0;
-                        end
-                    else
-                        [conflictedAnchRow,conflictedAnchCol] = find(AnchDists < minAnchDist & AnchDists > 0);
-                        % If conflicting anchors are in congruent positions to
-                        % their respective turbines, pop the current turbine to
-                        % a different location. Without this, turbines could
-                        % overlap on one another.
-                        for k = 1:length(conflictedAnchCol)
-                            if conflictedAnchRow(k) >= 1 && conflictedAnchRow(k) <= j-1
-                                if conflictedAnchCol(k) == 1
-                                    TurbX(j) = SiteX*rand;
-                                    TurbY(j) = SiteY*rand;
-                                    AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
-                                    AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
-                                else
-                                    RelocationCoordX = AnchorX(conflictedAnchRow(k), conflictedAnchCol(k));
-                                    RelocationCoordY = AnchorY(conflictedAnchRow(k), conflictedAnchCol(k));
-                                    TurbX(j) = RelocationCoordX - TADistance*cosd(180);
-                                    TurbY(j) = RelocationCoordY - TADistance*sind(180);
-                                    AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
-                                    AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
-                                end
-                            elseif conflictedAnchRow(k) >= j && conflictedAnchRow(k) <= 2*(j-1)
-                                if conflictedAnchCol(k) == 2
-                                    TurbX(j) = SiteX*rand;
-                                    TurbY(j) = SiteY*rand;
-                                    AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
-                                    AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
-                                else
-                                    RelocationCoordX = AnchorX(conflictedAnchRow(k)-(j-1), conflictedAnchCol(k));
-                                    RelocationCoordY = AnchorY(conflictedAnchRow(k)-(j-1), conflictedAnchCol(k));
-                                    TurbX(j) = RelocationCoordX - TADistance*cosd(300);
-                                    TurbY(j) = RelocationCoordY - TADistance*sind(300);
-                                    AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
-                                    AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
-                                end
-                            elseif conflictedAnchRow(k) >= 2*j && conflictedAnchRow(k) <= 3*(j-1)
-                                if conflictedAnchCol(k) == 3
-                                    TurbX(j) = SiteX*rand;
-                                    TurbY(j) = SiteY*rand;
-                                    AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
-                                    AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
-                                else
-                                    RelocationCoordX = AnchorX(conflictedAnchRow(k)-2*(j-1), conflictedAnchCol(k));
-                                    RelocationCoordY = AnchorY(conflictedAnchRow(k)-2*(j-1), conflictedAnchCol(k));
-                                    TurbX(j) = RelocationCoordX - TADistance*cosd(420);
-                                    TurbY(j) = RelocationCoordY - TADistance*sind(420);
-                                    AnchorX(j,:) = TurbX(j) + TADistance*cosd(Angles);
-                                    AnchorY(j,:) = TurbY(j) + TADistance*sind(Angles);
-                                end
-                            end
-                        end
-                        lastConflicts = currentConflicts;
-                    end
-                end
-                TurbDists = abs(sqrt((TurbX(j) - TurbX(1:j-1)).^2 + (TurbY(j) - TurbY(1:j-1)).^2));
-                count = 1;
-                for k = 1:3
-                     AnchDists(count:count+j-2,:) = abs(sqrt((AnchorX(j,k) - AnchorX(1:j-1,:)).^2 + (AnchorY(j,k) - AnchorY(1:j-1,:)).^2));
-                     count = count+j-1;
-                end
-                if all(TurbDists < eps | TurbDists > minTurbDist) && all(AnchDists(:) < eps | AnchDists(:) > minAnchDist)
-                    conflicts = 0;
+                % If anchors are too close, either move the anchor to a
+                % random other location until all conflicts resolve (for
+                % congruent anchors or single line systems), or move the
+                % current turbine to share the conflicting anchors
+                if any(AnchDists(:) < minAnchDist & AnchDists(:) > eps)
+                    [TurbX(j),TurbY(j),AnchorX(j,:),AnchorY(j,:),lastConflicts,conflicts] =...
+                        AnchConflictResolution(SiteX,SiteY,Angles,...
+                        TADistance,eps,AnchDists,minAnchDist,minTurbDist,...
+                        TurbX(1:j-1),TurbY(1:j-1),AnchorX(1:j-1,:),...
+                        AnchorY(1:j-1,:),lastConflicts);
                 end
             end
         end
@@ -220,7 +145,7 @@ for i = 1:NAnchs
     end
 end
 
-%% Develop anchor to anchor connections (Anchor associated with all other anchors
+%% Develop anchor to anchor connections (Anchor associated with all other anchors)
 AnchAnchConnect = zeros(NAnchs,9); %All anchors associated with given anchor
 for i = 1:NAnchs
     [r,c] = find(TurbAnchConnect == i); %Find turbines directly connected to this anchor
