@@ -1,7 +1,7 @@
 function [newTurbX,newTurbY,newAnchX,newAnchY,lastConflicts,conflicts] =...
     AnchConflictResolution(SiteX,SiteY,Angles,TADistance,eps,...
     AnchDists,minAnchDist,minTurbDist,existingTurbX,existingTurbY,existingAnchX,...
-    existingAnchY,lastConflicts)
+    existingAnchY,lastConflicts,DesignType)
 % Resolves distance conflicts between anchors that are too close to each
 % other (i.e. less than minAnchDist from each other; 500 meters by
 % default). If using single line anchors, the current turbine randomly
@@ -14,8 +14,8 @@ currentConflicts = AnchDists(AnchDists < minAnchDist & AnchDists > eps);
 % If an anchor is caught between two other anchors less than minAnchDist
 % apart, pop it to a random other location. This prevents an infinite loop
 % from occurring where the anchor switches back and forth between the two
-% nearby anchors
-if any(ismember(round(currentConflicts,4),round(lastConflicts,4)))
+% nearby anchors. Also do this for arrays using only single line anchors.
+if any(ismember(round(currentConflicts,4),round(lastConflicts,4))) || contains(DesignType,'single')
     newTurbX = SiteX*rand;
     newTurbY = SiteY*rand;
     newAnchX = newTurbX + TADistance*cosd(Angles);
