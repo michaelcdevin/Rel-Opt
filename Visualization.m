@@ -1,23 +1,44 @@
 function[AnchorReliability] =...
     Visualization(AnchorsOverstrengthened, OverstrengthFactor,...
-    NTurbs, DefaultTurbSpacing, DesignType, NSims, theta)
+    NTurbs, DefaultTurbSpacing, DesignType, NSims, theta, varargin)
 
 % Reliability_Compute determines the reliability of a multiline FOWT system
 % Spencer Hallowell, UMASS Amherst, 3/8/2018
 
 % Inputs:
 % AnchorsOverstrengthened: List of anchors (can range from 1-120) that have
-%                        OnverstrengthFactor applied to their strength
+%                        OverstrengthFactor applied to their strength
 % OverstrengthFactor: Factor to multiply the strength of each anchor in
 %                     AnchorsOverstrengthed
 
+explicitTurbs = 0;
+explicitSite = 0;
+if ~isempty(varargin)    
+    for j = 1:2:length(varargin)
+        if strcmp(varargin(j),'ExplicitTurbs')
+            explicitTurbs = 1;
+            TurbPos = readmatrix(char(varargin(j+1)));
+            NTurbs = length(TurbPos);
+        elseif strcmp(varargin(j),'ExplicitSite')
+            explicitSite = 1;
+            SiteDims = cell2mat(varargin(j+1));
+        else
+            error('Input parameter string not recognized.')
+        end
+    end
+end
 
 Z3 = zeros(1,3); %Preallocated vector of zeros
 
 %% Some geometry and other initialization variables
 TADistance = DefaultTurbSpacing*(sqrt(3)/3); %Spacing of turbines
-SiteX = sqrt(NTurbs*2)*DefaultTurbSpacing;
-SiteY = sqrt(NTurbs*2)*DefaultTurbSpacing;
+if explicitSite == 1
+    SiteX = SiteDims(1);
+    SiteY = SiteDims(2);
+else
+    SiteX = sqrt(NTurbs*2)*DefaultTurbSpacing;
+    SiteY = sqrt(NTurbs*2)*DefaultTurbSpacing;
+end
 NLineSegments = 6; %number of failure points in each mooring line
 SegNum = 1:NLineSegments; %Line segment numbers
 
@@ -48,13 +69,28 @@ D(7,2) = Displacements(6).Sway;
 %% Precompute line standard deviations
 [Res] = LineStdev(Res,SegNum); %Standard deviations of line forces assumed constant along length
 
-
+%% If explicit turbine positioning is selected, import turbine positions
+% Geometry and connectivity is created based on specified turbine positions
+if explicitTurbs == 1
+    TurbX = TurbPos(:,1);
+    TurbY = TurbPos(:,2);
+    if any(TurbX < 0 | TurbX > SiteX) || any(TurbY < 0 | TurbY > SiteY)
+        error('Turbine dimensions exceed site dimensions.')
+    end
+    [AnchorX,AnchorY,AnchLineConnect,...
+        LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
+        AnchorTurbConnect,~,~,~,AnchAnchConnect,...
+        LineAnchConnect,LineLineConnect,~,ALC] =...
+        Geo_Setup_Explicit(TurbX, TurbY, TADistance, NTurbs);
+else
+    [TurbX,TurbY,AnchorX,AnchorY,AnchLineConnect,...
+        LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
+        AnchorTurbConnect,~,~,~,AnchAnchConnect,...
+        LineAnchConnect,LineLineConnect,~,ALC] =...
+        Geo_Setup(SiteX,SiteY,TADistance,NTurbs,DesignType);
+end
 %% Create geometry and connectivity
-[TurbX,TurbY,AnchorX,AnchorY,AnchLineConnect,...
-    LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
-    AnchorTurbConnect,~,~,~,AnchAnchConnect,...
-    LineAnchConnect,LineLineConnect,~,ALC] =...
-    Geo_Setup(SiteX,SiteY,TADistance,NTurbs,DesignType);
+
 ZNTurbs_3 = zeros(NAnchs,3); %Preallocated matrix of zeros
 TurbXOriginal = TurbX; %Original location of the turbines
 TurbYOriginal = TurbY;
