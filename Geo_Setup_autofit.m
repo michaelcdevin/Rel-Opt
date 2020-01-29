@@ -17,7 +17,6 @@ nRemTurbs = rem(NTurbs,NCols);
 extraTurbRow = nRemTurbs;
 currentRow = 1;
 oddRowCount = 1;
-disp(nRemTurbs)
 
 %Create windfarm layout
 for j = 1:NRows-1
@@ -55,7 +54,7 @@ while turbsPlaced == 0
             AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
             nRemTurbs = nRemTurbs - 1;
             Count = Count + 1;
-        elseif rem(currentRow,2) == 0 && oddRowCount <= extraTurbRow - floor(NCols/2)
+        elseif rem(currentRow,2) == 0 && oddRowCount <= extraTurbRow - round(NCols/2)
             TurbX(Count,1) = (currentRow-1)*1.5*TADistance;
             TurbY(Count,1) = (NRows-1)*TurbSpacing+TurbSpacing/2;
             AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
