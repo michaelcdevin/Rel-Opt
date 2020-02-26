@@ -2,7 +2,7 @@ function[TurbX,TurbY,AnchorXu,AnchorYu,AnchLineConnect,...
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchTurbConnect,LineFail,AnchorFail,TurbFail,AnchAnchConnect,...
     LineAnchConnect,LineLineConnect,LAC,ALC] =...
-    Geo_Setup_autofit(NRows,NCols,TurbSpacing,TADistance,NTurbs)
+    Geo_Setup_autofit_corrected(NRows,NCols,TurbSpacing,TADistance,NTurbs)
 
 Angles = [180,300,420]; %Line angles
 
@@ -14,36 +14,50 @@ AnchorY = AnchorX;
 Count = 1;
 TriNum = .5*NRows*(NRows+1); %next closest triangle number to NTurbs
 toprowCount = TriNum - NTurbs;
-if toprowCount <= TriNum-2
+if toprowCount <= TriNum-2 && toprowCount > 0
     starttopRow = 2;
-elseif toprowCount >= TriNum
+elseif toprowCount >= TriNum || toprowCount == 0
     starttopRow = 1;
 end
 
 % Create windfarm layout
+% Bottom NCol-1 rows
+startCol = ceil(NRows/2);
+rowCount = 1;
+for j = 1:NRows-1
+    for i = 1:NCols
+        if i >= startCol && i <= rowCount+startCol-1
+            TurbX(Count,1) = (j-1)*1.5*TADistance;
+            if mod(j,2) ~= 0
+                TurbY(Count,1) = (i-1)*TurbSpacing+TurbSpacing/2;
+            else
+                TurbY(Count,1) = (i-1)*TurbSpacing;
+            end
+            AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
+            AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
+            Count = Count + 1;
+        end
+    end
+
+    rowCount = rowCount + 1;
+    if mod(j,2) == 0
+        startCol = startCol - 1;
+    end
+end
+
 % Top row
-for j = starttopRow:toprowCount
+for j = starttopRow:NCols
     TurbX(Count,1) = (NCols-1)*1.5*TADistance;
-    TurbY(Count,1) = (j-1)*TurbSpacing;
+    if mod(NCols,2) ~= 0
+        TurbY(Count,1) = (j-1)*TurbSpacing+TurbSpacing/2;
+    else
+        TurbY(Count,1) = (j-1)*TurbSpacing;
+    end
     AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
     AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
     Count = Count + 1;
 end
 
-for j = 2:NRows
-    for i = 1:NCols
-         TurbX(Count,1) = (i-1)*1.5*TADistance;
-        if mod(i,2) == 0
-            TurbY(Count,1) = (j-1)*TurbSpacing+TurbSpacing/2;
-        else
-            TurbY(Count,1) = (j-1)*TurbSpacing;
-        end
-        AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
-        AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
-        Count = Count + 1;
-    end
-end
-    
 % Rearrange anchors
 AnchorYr = reshape(AnchorY',[],1);
 AnchorXr = reshape(AnchorX',[],1);

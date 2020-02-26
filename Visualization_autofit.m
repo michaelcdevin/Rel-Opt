@@ -16,8 +16,10 @@ Z3 = zeros(1,3); %Preallocated vector of zeros
 
 %% Some geometry and other initialization variables
 TADistance = DefaultTurbSpacing*(sqrt(3)/3); %Spacing of turbines
-NRows = ceil(sqrt(NTurbs));
-NCols = round(sqrt(NTurbs));
+TriIdx = 1:ceil(NTurbs/2);
+TriOptions = .5.*TriIdx.*(TriIdx+1);
+NRows = TriIdx((find(TriOptions >= NTurbs,1,'first')));
+NCols = NRows;
 NLineSegments = 6; %number of failure points in each mooring line
 SegNum = 1:NLineSegments; %Line segment numbers
 
@@ -54,8 +56,7 @@ D(7,2) = Displacements(6).Sway;
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchorTurbConnect,~,~,~,AnchAnchConnect,...
     LineAnchConnect,LineLineConnect,~,ALC] =...
-    Geo_Setup_autofit(NRows,NCols,DefaultTurbSpacing,TADistance,NTurbs);
-disp(NAnchs)
+    Geo_Setup_autofit_corrected(NRows,NCols,DefaultTurbSpacing,TADistance,NTurbs);
 ZNTurbs_3 = zeros(NAnchs,3); %Preallocated matrix of zeros
 TurbXOriginal = TurbX; %Original location of the turbines
 TurbYOriginal = TurbY;
