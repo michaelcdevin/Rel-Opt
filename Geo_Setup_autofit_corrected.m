@@ -46,16 +46,19 @@ for j = 1:NRows-1
 end
 
 % Top row
-for j = starttopRow:NCols
+remTurbs = NTurbs - Count + 1;
+while remTurbs > 0
     TurbX(Count,1) = (NCols-1)*1.5*TADistance;
     if mod(NCols,2) ~= 0
-        TurbY(Count,1) = (j-1)*TurbSpacing+TurbSpacing/2;
+        TurbY(Count,1) = (starttopRow-1)*TurbSpacing+TurbSpacing/2;
     else
-        TurbY(Count,1) = (j-1)*TurbSpacing;
+        TurbY(Count,1) = (starttopRow-1)*TurbSpacing;
     end
     AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
     AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
     Count = Count + 1;
+    starttopRow = starttopRow + 1;
+    remTurbs = remTurbs - 1;
 end
 
 % Rearrange anchors
