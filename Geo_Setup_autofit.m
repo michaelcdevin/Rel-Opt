@@ -12,61 +12,55 @@ TurbY = zeros(NTurbs,1);
 AnchorX = zeros((NTurbs),3);
 AnchorY = AnchorX;
 Count = 1;
-turbsPlaced = 0;
-nRemTurbs = rem(NTurbs,NCols);
-extraTurbRow = nRemTurbs;
-currentRow = 1;
-oddRowCount = 1;
+TriNum = .5*NRows*(NRows+1); %next closest triangle number to NTurbs
+toprowCount = TriNum - NTurbs;
+if toprowCount <= TriNum-2 && toprowCount > 0
+    starttopRow = 2;
+elseif toprowCount >= TriNum || toprowCount == 0
+    starttopRow = 1;
+end
 
-%Create windfarm layout
+% Create windfarm layout
+% Bottom NCol-1 rows
+startCol = ceil(NRows/2);
+rowCount = 1;
 for j = 1:NRows-1
     for i = 1:NCols
-         TurbX(Count,1) = (i-1)*1.5*TADistance;
-        if mod(i,2) == 0
-            TurbY(Count,1) = (j-1)*TurbSpacing+TurbSpacing/2;
-        else
-            TurbY(Count,1) = (j-1)*TurbSpacing;
+        if i >= startCol && i <= rowCount+startCol-1
+            TurbX(Count,1) = (j-1)*1.5*TADistance;
+            if mod(j,2) ~= 0
+                TurbY(Count,1) = (i-1)*TurbSpacing+TurbSpacing/2;
+            else
+                TurbY(Count,1) = (i-1)*TurbSpacing;
+            end
+            AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
+            AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
+            Count = Count + 1;
         end
-        AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
-        AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
-        Count = Count + 1;
+    end
+
+    rowCount = rowCount + 1;
+    if mod(j,2) == 0
+        startCol = startCol - 1;
     end
 end
 
-while turbsPlaced == 0
-    if Count > NTurbs
-        turbsPlaced = 1;
-    elseif nRemTurbs == 0
-        TurbX(Count,1) = (currentRow-1)*1.5*TADistance;
-        if mod(currentRow,2) == 0
-            TurbY(Count,1) = (NRows-1)*TurbSpacing+TurbSpacing/2;
-        else
-            TurbY(Count,1) = (NRows-1)*TurbSpacing;
-        end
-        AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
-        AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
-        Count = Count + 1;
-    elseif nRemTurbs > 0
-        if rem(currentRow,2) ~= 0
-            TurbX(Count,1) = (currentRow-1)*1.5*TADistance;
-            TurbY(Count,1) = (NRows-1)*TurbSpacing;
-            AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
-            AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
-            nRemTurbs = nRemTurbs - 1;
-            Count = Count + 1;
-        elseif rem(currentRow,2) == 0 && oddRowCount <= extraTurbRow - round(NCols/2)
-            TurbX(Count,1) = (currentRow-1)*1.5*TADistance;
-            TurbY(Count,1) = (NRows-1)*TurbSpacing+TurbSpacing/2;
-            AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
-            AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
-            oddRowCount = oddRowCount + 1;
-            nRemTurbs = nRemTurbs - 1;
-            Count = Count + 1;
-        end
+% Top row
+remTurbs = NTurbs - Count + 1;
+while remTurbs > 0
+    TurbX(Count,1) = (NCols-1)*1.5*TADistance;
+    if mod(NCols,2) ~= 0
+        TurbY(Count,1) = (starttopRow-1)*TurbSpacing+TurbSpacing/2;
+    else
+        TurbY(Count,1) = (starttopRow-1)*TurbSpacing;
     end
-    currentRow = currentRow + 1;
+    AnchorX(Count,:) = TurbX(Count) + TADistance*cosd(Angles);
+    AnchorY(Count,:) = TurbY(Count) + TADistance*sind(Angles);
+    Count = Count + 1;
+    starttopRow = starttopRow + 1;
+    remTurbs = remTurbs - 1;
 end
-    
+
 % Rearrange anchors
 AnchorYr = reshape(AnchorY',[],1);
 AnchorXr = reshape(AnchorX',[],1);
