@@ -3,7 +3,7 @@
 % Michael Devin, Oregon State University, 4/2/2018
 
 function [BestRel,Op_Turbines] =...
-    Anchor_Optimization_2019_09_16(nStrengthenedAnchors,...
+    Anchor_Optimization(nStrengthenedAnchors,...
     OverstrengthFactor, varargin)
 
 % Default problem parameters (can be modified with input arguments)
@@ -81,7 +81,7 @@ end
 % Other parameters (shouldn't need to be changed once code is finalized)
 nSims = 5000;
 Convergence_Its = 10;
-Convergence_Threshold = 0.0005;
+Convergence_Threshold = 0.001;
 nInitialTests = 25;
 cross_ptg = .3;
 clone_ptg = .2;
@@ -100,7 +100,7 @@ It_Limit = 500; %maximum number of iterations before algorithm automatically sto
 archivalSpace = 100000; %extra rows preallocated for archival variables
 
 BestRel = 0;
-fileID = 'ConvergenceTest2_2019_09_23.txt';
+fileID = 'OptimalConfigs.csv';
 
 % Preallocate matrices                                           
 Anchors_Array = zeros(nPop, nAnchors);
@@ -169,9 +169,9 @@ converged = 0;
 while converged == 0
     n = n + 1;
     disp(n)
-    resultsfile = fopen(fileID, 'a');
-    fprintf(resultsfile, 'Iteration %d\r\n\n', n);
-    fclose(resultsfile);
+%     resultsfile = fopen(fileID, 'a');
+%     fprintf(resultsfile, 'Iteration %d\r\n\n', n);
+%     fclose(resultsfile);
     % Fill population with previous clones and children (none if first iteration)
     Anchors_Array(1:nChildren+nClones,:) = newgen;
     
@@ -209,7 +209,7 @@ while converged == 0
             % current array
             newInd = newInd + 1;
             for j = 1:nInitialTests
-                InitialTests(j) = Reliability_Compute2(Strengthened_Turbines,...
+                InitialTests(j) = Reliability_Compute_original(Strengthened_Turbines,...
                 OverstrengthFactor,nRows, nCols, TurbSpacing, DesignType,...
                 nSims, theta);
             end
@@ -227,7 +227,7 @@ while converged == 0
             % Current configuration has been previously saved. A
             % single extra test is added to adjust the set
             % reliability
-            AddedRel = Reliability_Compute2(Strengthened_Turbines,...
+            AddedRel = Reliability_Compute_original(Strengthened_Turbines,...
                 OverstrengthFactor,nRows, nCols, TurbSpacing, DesignType,...
                 nSims, theta);
             Reliability(i) = (storedRels(archiveIndex)*storedTestIts(archiveIndex) + AddedRel)/(storedTestIts(archiveIndex)+1);
@@ -266,14 +266,14 @@ while converged == 0
     ItBestRel(n) = RelEnum(1,2);
     ItBestArray(n,:) = find(Anchors_Array(RelEnum(1,1),:));
     
-    resultsfile = fopen(fileID, 'a');
-    fprintf(resultsfile,...
-        'Overall Best Reliability:\r\n%f\r\nBest Array:\r\n%s %s %s %s %s %s %s %s %s %s\r\n\n',...
-        BestRel, string(find(BestArray)));
-    fprintf(resultsfile,...
-        'Iteration Best Reliability:\r\n%f\r\nBest Array:\r\n%s %s %s %s %s %s %s %s %s %s\r\n\n',...
-        ItBestRel(n), string(ItBestArray(n,:)));
-    fclose(resultsfile);
+%     resultsfile = fopen(fileID, 'a');
+%     fprintf(resultsfile,...
+%         'Overall Best Reliability:\r\n%f\r\nBest Array:\r\n%s %s %s %s %s %s %s %s %s %s\r\n\n',...
+%         BestRel, string(find(BestArray)));
+%     fprintf(resultsfile,...
+%         'Iteration Best Reliability:\r\n%f\r\nBest Array:\r\n%s %s %s %s %s %s %s %s %s %s\r\n\n',...
+%         ItBestRel(n), string(ItBestArray(n,:)));
+%     fclose(resultsfile);
     
     % Once the algorithm hits Convergence_Its, takes a running
     % average of the previous Convergence_Its iteration-best reliabilities
