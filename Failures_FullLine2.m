@@ -6,7 +6,10 @@ function[LineFail,AnchorFail,TurbFail,LineStrengths,AnchorStrengths,...
 %% Start with line failures
 LineFail = LineDemands >= LineStrengths;
 % Set failed line capacities equal to zero so that they continue to fail
-
+% IndLineFails designates line failures unrelated to anchor failures
+[IndLineFails,~] = find(LineFail);
+IndLineFails = unique(IndLineFails);
+disp(IndLineFails)
 
 %% Next, find anchor failures
 % disp(['AnchorDemands: ',num2str(size(AnchorDemands))])
@@ -17,6 +20,11 @@ AnchorStrengths(AnchorFail) = 0;
 
 % Next, fail the lines connected to the failed anchors
 LF = ALC(AnchorFail,:);
+AnchLineFails = LF;
+% disp('IndLineFails:')
+% disp(IndLineFails)
+% disp('AnchLineFails:')
+% disp(AnchLineFails)
 % LineFail2 = LineFail;
 LineFail(LF(LF~=0),:) = 1;
 LineStrengths(LineFail) = 0;
