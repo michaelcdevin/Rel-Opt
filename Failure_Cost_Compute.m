@@ -57,8 +57,8 @@ D(7,2) = Displacements(6).Sway;
 [TurbX,TurbY,AnchorX,AnchorY,AnchLineConnect,...
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchorTurbConnect,~,~,~,AnchAnchConnect,...
-    LineAnchConnect,LineLineConnect,~,ALC] =...
-    Geo_Setup_original(NRows,NCols,DefaultTurbSpacing,TADistance,NTurbs);
+    LineAnchConnect,LineLineConnect,~,ALC,centerline_distance] =...
+    Geo_Setup_arraydistance(NRows,NCols,DefaultTurbSpacing,TADistance,NTurbs);
 ZNTurbs_3 = zeros(NAnchs,3); %Preallocated matrix of zeros
 TurbXOriginal = TurbX; %Original location of the turbines
 TurbYOriginal = TurbY;
@@ -190,10 +190,11 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
         
         % Determine failure states. Remember to include surge and sway
         % offsets (7.5 and 0.1, respectively)
-        [LineFail,AnchorFail,~,LineStrengths,AnchorStrengths,TurbFailState,TurbX_New,TurbY_New] =...
+        [LineFail,AnchorFail,~,LineStrengths,AnchorStrengths,TurbFailState,...
+            TurbX_New,TurbY_New,IndAnchs] =...
             Failures_FullLine2(AnchorStrengths,AnchorDemands,LineStrengths,...
             LineDemands,TurbFail,TurbXOriginal+7.4998,...
-            TurbYOriginal+0.1063,TurbList,ALC,D,LineAnchConnect);
+            TurbYOriginal+0.1063,TurbList,ALC,D);
         
         LineFailState = any(LineFail,2); %Check to see if any lines have failed
         
@@ -208,23 +209,14 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
         AnchorStrengths(AnchorImpactedCount==1) = AnchorStrengths(AnchorImpactedCount==1)*0.8;
         AnchorImpactedCount = AnchorImpactedCount + AnchorImpactedCount;
         
-        %% Update number of failures
-        na = sum(AnchorFail); %Number of anchor failures
-        lftemp = sum(LineFail,2);
-        lftemp(lftemp>1) = 1;
-        nl = sum(sum(lftemp)); %Number of line failures
-        nf2 = na + nl; %Total number of failures        
         count = count + 1;
     end %Simulation ends after this
-    
-    maxc(nn) = count; %Total number of iterations
-    nlf = nlf + LineFailState; %Total number of lines failed (out of all simulations)
-    naf = naf + AnchorFail; %Total number of anchors failed (out of all simulations)-
 
     % Calculate cost of failure for this simulation
     sim_failure_cost(nn) = failure_cost(LineFailState, AnchorFail,...
-        AnchPricePerTon, MfgAnchorStrengths, downtime_lengths,...
-        prob_of_20hr_window);
+        IndAnchs, AnchPricePerTon, MfgAnchorStrengths, TurbAnchConnect,...
+        centerline_distance, downtime_lengths, prob_of_20hr_window);
+    disp(TurbAnchConnect)
 end
 
 % Calculate added cost of overstrengthening anchors in this setup
