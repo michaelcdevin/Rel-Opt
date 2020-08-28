@@ -27,8 +27,8 @@ R = load(['ReliabilityResultsLN_Final,',num2str(theta),'deg.mat']);
 Res = R.Res;
 
 %% Load in results from site metocean analysis.
-downtime_lengths = readmatrix('downtime_lengths.csv');
-prob_of_20hr_window = readmatrix('prob_of_20hr_window.txt');
+downtime_lengths = readmatrix('downtime_lengths_12hr.csv');
+prob_of_12hr_window = readmatrix('prob_of_12hr_window.txt');
 
 %% Load in displacements of turbines in failed configurations
 load(['Surge_',num2str(theta),'deg.mat'])
@@ -57,8 +57,8 @@ D(7,2) = Displacements(6).Sway;
 [TurbX,TurbY,AnchorX,AnchorY,AnchLineConnect,...
     LineConnect,TurbLineConnect,TurbAnchConnect,NAnchs,NLines,...
     AnchorTurbConnect,~,~,~,AnchAnchConnect,...
-    LineAnchConnect,LineLineConnect,~,ALC,centerline_distance] =...
-    Geo_Setup_arraydistance(NRows,NCols,DefaultTurbSpacing,TADistance,NTurbs);
+    LineAnchConnect,LineLineConnect,~,ALC] =...
+    Geo_Setup_original(NRows,NCols,DefaultTurbSpacing,TADistance,NTurbs);
 ZNTurbs_3 = zeros(NAnchs,3); %Preallocated matrix of zeros
 TurbXOriginal = TurbX; %Original location of the turbines
 TurbYOriginal = TurbY;
@@ -115,9 +115,6 @@ S3 = sind(theta+120).*ones(size(ZNTurbs_3));
 ra = AnchorsOverstrengthened; %This gives the layout of the overstrengthened anchors (list form, with anchor #)
 LinesImpactedTemp = zeros(NLines,1);
 AnchorsImpactedTemp = zeros(NAnchs,1);
-maxc = zeros(NSims,1);
-naf = zeros(NAnchs,1);
-nlf = zeros(NLines,1);
 sim_failure_cost = zeros(NSims, 1);
 
 for nn = 1:1:NSims %This can be run in parallel using parfor
@@ -145,8 +142,8 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
         AnchorStrengths(ra) = OverstrengthFactors .* AnchorStrengths(ra);
         MfgAnchorStrengths(ra) = OverstrengthFactors .* MfgAnchorStrengths(ra);
     elseif length(OverstrengthFactors) == 1
-        AnchorStrengths(ra) = OverstrengthFactors .* AnchorStrengths(ra);
-        MfgAnchorStrengths(ra) = OverstrengthFactors .* MfgAnchorStrengths(ra);
+        AnchorStrengths(ra) = OverstrengthFactors * AnchorStrengths(ra);
+        MfgAnchorStrengths(ra) = OverstrengthFactors * MfgAnchorStrengths(ra);
     else
         error('OverstrengthFactors must be of length 1 or length(AnchorsOverstrengthened)')
     end
@@ -213,19 +210,18 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
     end %Simulation ends after this
 
     % Calculate cost of failure for this simulation
-    sim_failure_cost(nn) = failure_cost(LineFailState, AnchorFail,...
-        IndAnchs, AnchPricePerTon, MfgAnchorStrengths, TurbAnchConnect,...
-        centerline_distance, downtime_lengths, prob_of_20hr_window);
-    disp(TurbAnchConnect)
+    sim_failure_cost(nn) = failure_cost(LineFailState, AnchorFail, IndAnchs,...
+        AnchPricePerTon, MfgAnchorStrengths, TurbAnchConnect, TurbLineConnect,...
+        NTurbs, NCols, TADistance, downtime_lengths, prob_of_12hr_window);
 end
 
 % Calculate added cost of overstrengthening anchors in this setup
 OSF_cost = osf_cost(AnchorsOverstrengthened, AnchPricePerTon,...
     MfgAnchorStrengths, NAnchs);
-% disp(['Total OSF costs: ', num2str(OSF_cost)])
+disp(['Total OSF costs: ', num2str(OSF_cost)])
 % Average all of the failure costs from the Monte Carlo
 avg_failure_cost = sum(sim_failure_cost)/NSims;
-% disp(['Total failure costs: ', num2str(avg_failure_cost)])
+disp(['Total failure costs: ', num2str(avg_failure_cost)])
         
 % HeatMap(TurbX,TurbY,AnchorX,AnchorY,LineConnect,timesStrengthened)
 %PaintLines(TurbX,TurbY,AnchorX,AnchorY,LineFail,LineConnect,AnchorFail,TurbFail,TurbAnchConnect)

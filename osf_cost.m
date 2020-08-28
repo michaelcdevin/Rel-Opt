@@ -4,8 +4,6 @@ function[osf_cost] = osf_cost(AnchorsOverstrengthened,AnchPricePerTon,...
 % Calculates the total added cost of increasing the anchor strength for all
 % overstrengthened anchors
 
-steel_density = 7850; %kg/m3, assume A36
-
 % Determine mass for overstrengthened anchors in metric tons
 os_anchor_masses = zeros(1, length(AnchorsOverstrengthened));
 for j = 1:length(AnchorsOverstrengthened)
