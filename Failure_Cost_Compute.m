@@ -139,8 +139,8 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
     % to all overstrengthened anchors, or each overstrengthened anchor can
     % have its own overstrength factor.
     if length(OverstrengthFactors) == length(AnchorsOverstrengthened)
-        AnchorStrengths(ra) = OverstrengthFactors .* AnchorStrengths(ra);
-        MfgAnchorStrengths(ra) = OverstrengthFactors .* MfgAnchorStrengths(ra);
+        AnchorStrengths(ra) = OverstrengthFactors' .* AnchorStrengths(ra);
+        MfgAnchorStrengths(ra) = OverstrengthFactors' .* MfgAnchorStrengths(ra);
     elseif length(OverstrengthFactors) == 1
         AnchorStrengths(ra) = OverstrengthFactors * AnchorStrengths(ra);
         MfgAnchorStrengths(ra) = OverstrengthFactors * MfgAnchorStrengths(ra);
