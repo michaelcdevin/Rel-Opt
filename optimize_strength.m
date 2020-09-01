@@ -1,21 +1,23 @@
-function [min_cost, best_config] = optimize_strength(varargin)
+%% COST OPTIMIZATION FOR MULTILINE FOWT ARRAY
+%  ==========================================
+%  Written by Michael C. Devin, Oregon State University, 2020 Aug 28
 
-% Anchor optimization for reliability calculations of multiline FOWT array
-% Michael Devin, Oregon State University, 2020 Aug 28
+clear
+clc
 
 %% Optimization parameters
-pop_size = 50; % population size
-num_osf_increments = 11; % 1:.1:2 by default
+pop_size = 10; % population size
+num_osf_increments = 11; % 1.1:.1:2 by default
 cross_ptg = .3; % crossover percentage
 clone_ptg = .2; % cloning percentage
 convergence_its = 10; % number of iterations needed for convergence to be declared and loop to stop
 
-osf_increments = linspace(1, 2, num_osf_increments);
+osf_increments = linspace(1.1, 2, num_osf_increments);
 num_children = round(cross_ptg * pop_size);
 num_clones = round(clone_ptg * pop_size);
 if mod(num_children,2) == 1 %if nChildren is odd, make it even
     num_children = num_children + 1;
-    if num_children + num_clones > nPop %basically, if nPop = 2
+    if num_children + num_clones > pop_size %basically, if nPop = 2
         num_clones = 0;
     end
 end
@@ -43,7 +45,7 @@ converged = 0;
 gen = 0; % generation counter
 convergence_counter = 0; % if convergence_counter == convergence_its, problem is considered optimized
 
-while ~converged
+for temptime = 1:5
     gen = gen + 1; %increment generation counter
     
     %% Create population
@@ -51,16 +53,15 @@ while ~converged
     % different organisms.
     
     % Fill population with clones and children from last iteration (none if first iteration)
-    current_gen(:,:,1:num_children+num_clones) = next_gen;
-    
-    % Fill remaining population with random configurations
-    for j = num_children + num_clones + 1:pop_size
-        num_strengthened_anchs = round(num_anchs * rand);
-        strengthened_anchs = randperm(num_anchs, num_strengthened_anchs);
-        osf_selections = randi(num_osf_increments, num_strengthened_anchs, 1);
-        % Make sure only 1 OSF selection is made per strengthened anchor
-        for k = 1:length(osf_selections)
-            current_gen(strengthened_anchs(k), osf_selections(k), j) = 1;
+    if gen == 1
+        for j = 1:pop_size
+            current_gen(:,:,j) = create_config(num_anchs, num_osf_increments);
+        end
+    else
+        current_gen(:,:,1:num_children+num_clones) = next_gen;
+        % Fill remaining population with random configurations
+        for j = num_children + num_clones + 1:pop_size
+            current_gen(:,:,j) = create_config(num_anchs, num_osf_increments);
         end
     end
     
@@ -77,7 +78,7 @@ while ~converged
         gen_costs(j) = Failure_Cost_Compute(strengthened_anchs, osf_selections,...
             rows, cols, turb_spacing, design_type, num_sims, theta);
         
-        % pop_costs is enumerated so costs can be ranked without losing the
+        % gen_costs is enumerated so costs can be ranked without losing the
         % link to the respective configurations
         gen_costs_enum(j, :) = [j, gen_costs(j)];
         
@@ -121,14 +122,15 @@ while ~converged
     
     % Cloning: copy best chromosomes to next generation. Note that cloned
     % chromosomes are also potential parents.
-    next_gen(:,:,1:nClones) = current_gen(:,:,gen_costs_enum_sorted(1:nClones,1));
+    next_gen(:,:,1:num_clones) =...
+        current_gen(:,:,gen_costs_enum_sorted(1:num_clones,1));
 
     % Kill: since the algorithm and evaluation already have a high amount
     % of stochasticity, all below-average chromosomes are removed to
     % improve convergence speed.
     gen_avg_cost = mean(gen_costs);
     gen_good_costs_enum =...
-        gen_costs_enum_sorted(gen_costs_enum_sorted(:,2)>gen_avg_cost);
+        gen_costs_enum_sorted(gen_costs_enum_sorted(:,2)>gen_avg_cost, :);
     
     % Fitness function: fitness of each configuration is equal to the
     % number of st. devs. above average it is out of the sum of total
@@ -136,36 +138,28 @@ while ~converged
     gen_std = std(gen_costs);
     gen_fitness = (gen_good_costs_enum(:,2) - gen_avg_cost) / gen_std;
     gen_fitness = cumsum(gen_fitness / sum(gen_fitness));
+    gen_fitness_enum = [gen_good_costs_enum(:,1) gen_fitness];
     
     % Selection: there is no practical difference between mothers and
     % fathers, they are just more intuitive to use as variables than
-    % "groupofparent1s" and "groupofparent2s". Each mother-father
-    % combination produces 1 child, but there is nothing preventing the
-    % same config to be used for multiple mother-father pairings since
-    % monogamy is not a moral value in this algorithm.
-    mother_probs = rand(num_children, 1);
-    father_probs = rand(num_children, 1);
-    
-        % Connect probabilities to configs.
-        %%%%%%%%%%%%%% NEED TO ADD PROPER ENUMERATION TO GEN_FITNESS!!!
-    fitness_repmat = repmat(gen_fitness, [1 num_children]);
-    mother_probs_diff = fitness_repmat - mother_probs';
-    mother_probs_diff(mother_probs_diff<0) = nan;
-    [~, mothers_idxs] = min(mother_probs_diff);
-    mothers = current_gen(:,:,mothers_idxs);
-    father_probs_diff = fitness_repmat - father_probs';
-    father_probs_diff(father_probs_diff<0) = nan;
-    [~, fathers_idxs] = min(father_probs_diff);
-    fathers = current_gen(:,:,fathers_idxs);
-    
-    % Crossover: children are produced from a random combination of the
-    % strengthened anchors of its two parents (keeping the OSF the same).
-    % If the same anchor is selected from both parents, its OSF value is
-    % averaged for the child.
+    % "groupofparent1s" and "groupofparent2s".
+    [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness_enum);
+
+    % Crossover: Each mother/father pairing produces 1 child, but there is
+    % nothing preventing the same config from being used for multiple
+    % mother/father pairings since monogamy is not a moral value in this
+    % algorithm.
+    for j = 1:num_children
+        next_gen(:,:,num_clones+j) = create_child(mothers(:,:,j), fathers(:,:,j));
+    end
     
 
-    %% Mutation?
-
+    % Mutation: leave out for now due to sufficient stochasticity. If
+    % converging prematurely, add back in.
+    
 end
 
-end
+%% After the algorithm converges, print outputs to a CSV file
+t = datetime('now', 'Format', 'yyyy-MM-dd''_''HHmmss'); % current clock time
+writematrix(min_cost, ['min_cost_',char(t),'.txt'])
+writematrix(best_config, ['best_config_',char(t),'.csv'])
