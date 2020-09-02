@@ -7,27 +7,22 @@ clc
 
 %% Optimization parameters
 pop_size = 10; % population size
-num_osf_increments = 11; % 1.1:.1:2 by default
-cross_ptg = .3; % crossover percentage
+num_osf_increments = 20; % 1.05:.05:2 by default
+cross_ptg = .7; % crossover percentage
 clone_ptg = .2; % cloning percentage
-convergence_its = 10; % number of iterations needed for convergence to be declared and loop to stop
+convergence_its = 20; % number of iterations needed for convergence to be declared and loop to stop
+archive_length = 100000; % extra rows preallocated for archival variables
 
-osf_increments = linspace(1.1, 2, num_osf_increments);
+osf_increments = linspace(1.05, 2, num_osf_increments)';
 num_children = round(cross_ptg * pop_size);
 num_clones = round(clone_ptg * pop_size);
-if mod(num_children,2) == 1 %if nChildren is odd, make it even
-    num_children = num_children + 1;
-    if num_children + num_clones > pop_size %basically, if nPop = 2
-        num_clones = 0;
-    end
-end
 
 %% Evaluation parameters
 rows = 10;
 cols = 10;
 turb_spacing = 1451;
 design_type = 'Real multi';
-num_sims = 5000; % remove later once you get modular checking working
+num_sims = 3000;
 theta = 0;
 
 num_turbs = rows * cols;
@@ -37,11 +32,16 @@ num_anchs = FindAnchors(rows, cols, turb_spacing, turb_anch_distance, num_turbs)
 %% Preallocate matrices
 current_gen = zeros(num_anchs, num_osf_increments, pop_size);
 next_gen = zeros(num_anchs, num_osf_increments, num_children + num_clones);
+gen_archive_idxs = zeros(pop_size, 1);
+stored_configs = zeros(num_anchs, num_osf_increments, archive_length);
+stored_costs = zeros(archive_length, 1);
+stored_num_sims = zeros(archive_length, 1);
 gen_costs = zeros(pop_size, 1);
 gen_costs_enum = zeros(pop_size, 2);
 
 %% Start GA loop
 converged = 0;
+new_archive_idx = 0; % index of archive variables to add new config information
 gen = 0; % generation counter
 convergence_counter = 0; % if convergence_counter == convergence_its, problem is considered optimized
 
@@ -65,18 +65,19 @@ for temptime = 1:5
         end
     end
     
+    % Find members of population stored in archive, and get the archive
+    % indices for the population.
+    for j = 1:pop_size
+        gen_archive_idxs(j) = get_archive_idx(current_gen(:,:,j), stored_configs);
+    end
+    
     %% Evaluate population
     
-    for j = 1:pop_size
-        % current_gen is in binary values. To be readable by
-        % Failure_Cost_Compute, translate positions of 1s to their 
-        % corresponding anchor numbers and overstrength factors.
-        [strengthened_anchs, osf_selections] = find(current_gen(:,:,j));
-        osf_selections = osf_increments(osf_selections);
-
-        % Evaluate configurations
-        gen_costs(j) = Failure_Cost_Compute(strengthened_anchs, osf_selections,...
-            rows, cols, turb_spacing, design_type, num_sims, theta);
+    parfor j = 1:pop_size
+        gen_costs(j) =...
+            evaluate_config(current_gen(:,:,j), rows, cols, turb_spacing,...
+            design_type, num_sims, theta, osf_increments,...
+            gen_archive_idxs(j), stored_costs, stored_num_sims);
         
         % gen_costs is enumerated so costs can be ranked without losing the
         % link to the respective configurations
@@ -91,7 +92,8 @@ for temptime = 1:5
     gen_min_cost = gen_costs_enum_sorted(1,2);
     [gen_best_strengthened_anchs, gen_best_osf_selections] =...
         find(current_gen(:,:,gen_costs_enum_sorted(1,1)));
-    gen_best_config = [gen_best_strengthened_anchs gen_best_osf_selections];
+    gen_best_config =...
+        [gen_best_strengthened_anchs osf_increments(gen_best_osf_selections)];
     
     % Update overall lowest cost and respective configuration if applcble.
     if gen == 1 % first generation has nothing to compare to
@@ -117,6 +119,11 @@ for temptime = 1:5
     if convergence_counter == convergence_its
         converged = 1;
     end
+    
+    % Update archives
+    [stored_configs, stored_costs, stored_num_sims] =...
+        update_archives(current_gen, gen_costs, num_sims, gen_archive_idxs,...
+        new_archive_idx, stored_configs, stored_costs, stored_num_sims);
     
     %% Generate new population
     
@@ -154,9 +161,12 @@ for temptime = 1:5
     end
     
 
-    % Mutation: leave out for now due to sufficient stochasticity. If
-    % converging prematurely, add back in.
+    % Mutation: TO DO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
+    % Print current lowest cost and best config to command window
+    disp('Current best configuration:')
+    disp(best_config)
+    disp(['Cost: ', num2str(min_cost)])
 end
 
 %% After the algorithm converges, print outputs to a CSV file

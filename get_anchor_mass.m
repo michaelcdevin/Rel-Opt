@@ -11,4 +11,4 @@ L = 1.1161 * anchor_capacity ^ .3442;
 D = .3095 * anchor_capacity ^ .2798;
 T = 2.058 * anchor_capacity ^ .2803 / 1000;
 
-anchor_mass = ((pi*(D/2)^2 * L) - (pi*(((D-2*T)/2)^2 * L))) * steel_density;
+anchor_mass = ((pi*(D/2)^2 * L) - (pi*(((D-2*T)/2)^2 * L))) * steel_density; % in kg

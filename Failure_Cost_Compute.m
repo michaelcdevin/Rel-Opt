@@ -131,7 +131,8 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
     % AnchorStrengths compose the distributed anchor strenghts (for failure
     % uncertainty purposes). MfgAnchorStrengths compose the anchor strength
     % prescribed for manufacturing (for cost evaluation purposes).
-    [LineStrengths,AnchorStrengths, MfgAnchorStrengths] =...
+    % NormalMfgStrength is MfgAnchorStrength for OverstrengthFactor = 1.
+    [LineStrengths,AnchorStrengths, MfgAnchorStrengths, NormalMfgStrength] =...
         Capacity_Setup_Full_Line(NTurbs,NAnchs,1,SegNum,Res,DesignType,Asingle,Amulti);
     
     %% Amplify strength of anchors of interest by overstrength factor.
@@ -139,8 +140,8 @@ for nn = 1:1:NSims %This can be run in parallel using parfor
     % to all overstrengthened anchors, or each overstrengthened anchor can
     % have its own overstrength factor.
     if length(OverstrengthFactors) == length(AnchorsOverstrengthened)
-        AnchorStrengths(ra) = OverstrengthFactors' .* AnchorStrengths(ra);
-        MfgAnchorStrengths(ra) = OverstrengthFactors' .* MfgAnchorStrengths(ra);
+        AnchorStrengths(ra) = OverstrengthFactors .* AnchorStrengths(ra);
+        MfgAnchorStrengths(ra) = OverstrengthFactors .* MfgAnchorStrengths(ra);
     elseif length(OverstrengthFactors) == 1
         AnchorStrengths(ra) = OverstrengthFactors * AnchorStrengths(ra);
         MfgAnchorStrengths(ra) = OverstrengthFactors * MfgAnchorStrengths(ra);
@@ -217,11 +218,10 @@ end
 
 % Calculate added cost of overstrengthening anchors in this setup
 OSF_cost = osf_cost(AnchorsOverstrengthened, AnchPricePerTon,...
-    MfgAnchorStrengths, NAnchs);
-disp(['Total OSF costs: ', num2str(OSF_cost)])
+    MfgAnchorStrengths, NormalMfgStrength, NAnchs);
+
 % Average all of the failure costs from the Monte Carlo
 avg_failure_cost = sum(sim_failure_cost)/NSims;
-disp(['Total failure costs: ', num2str(avg_failure_cost)])
         
 % HeatMap(TurbX,TurbY,AnchorX,AnchorY,LineConnect,timesStrengthened)
 %PaintLines(TurbX,TurbY,AnchorX,AnchorY,LineFail,LineConnect,AnchorFail,TurbFail,TurbAnchConnect)

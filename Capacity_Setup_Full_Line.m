@@ -1,4 +1,4 @@
-function[ChainStrengths,AnchorStrengths, MfgAnchorStrengths] =...
+function[ChainStrengths,AnchorStrengths, MfgAnchorStrengths, NormalMfgStrength] =...
     Capacity_Setup_Full_Line(NTurbs,NAnchs,NumSamples,...
     SegNum,Res,dtype,Asingle,Amulti)
 
@@ -84,3 +84,4 @@ AnchorStrengths(Amulti) = Multi_AnchorStrengths;
 % To make the math easier later on, MfgAnchorStrengths is in kN, while
 % AnchorStrengths is in N
 MfgAnchorStrengths = ones(NAnchs,1) * MultiMeanAnchor / 1000;
+NormalMfgStrength = MultiMeanAnchor / 1000;
