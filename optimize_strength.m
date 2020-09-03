@@ -6,16 +6,20 @@ clear
 clc
 
 %% Optimization parameters
-pop_size = 10; % population size
+pop_size = 100; % population size
 num_osf_increments = 20; % 1.05:.05:2 by default
-cross_ptg = .7; % crossover percentage
+cross_ptg = .6; % crossover percentage
 clone_ptg = .2; % cloning percentage
-convergence_its = 20; % number of iterations needed for convergence to be declared and loop to stop
+kill_ptg = .2; % kill percentage
+mut_ptg = .02; % mutation percentage (number of individuals mutated)
+mut_rate = .1; % mutation rate (mutated genes per mutated individual)
 archive_length = 100000; % extra rows preallocated for archival variables
 
 osf_increments = linspace(1.05, 2, num_osf_increments)';
 num_children = round(cross_ptg * pop_size);
 num_clones = round(clone_ptg * pop_size);
+num_killed = round(kill_ptg * pop_size);
+num_mutated = round(mut_ptg * pop_size);
 
 %% Evaluation parameters
 rows = 10;
@@ -38,25 +42,44 @@ stored_costs = zeros(archive_length, 1);
 stored_num_sims = zeros(archive_length, 1);
 gen_costs = zeros(pop_size, 1);
 gen_costs_enum = zeros(pop_size, 2);
+gen_min_cost_tracker = zeros(archive_length,1);
+gen_best_config_tracker = cell(archive_length,1);
+min_cost_tracker = zeros(archive_length,1);
+best_config_tracker = cell(archive_length,1);
+
+%% Load seeded configurations
+seeding_file = 'seeded_configs_10x10.mat';
+seeded_configs = importdata(seeding_file);
+num_seeded_configs = size(seeded_configs,3);
+% truncate the number of seeded configs if it's larger than pop_size
+if num_seeded_configs > pop_size
+    seeded_configs = seeded_configs(:,:,1:pop_size);
+    num_seeded_configs = pop_size;
+end
 
 %% Start GA loop
 converged = 0;
 new_archive_idx = 0; % index of archive variables to add new config information
 gen = 0; % generation counter
-convergence_counter = 0; % if convergence_counter == convergence_its, problem is considered optimized
+convergence_std = 10000; % if a generation's st. dev. is <, problem is converged
 
-for temptime = 1:5
+while ~converged
     gen = gen + 1; %increment generation counter
     
     %% Create population
     % Rows are different anchors, columns are different OSFs, pages are
     % different organisms.
-    
-    % Fill population with clones and children from last iteration (none if first iteration)
+
+    % For first generation, seed initial configurations, and fill the rest
+    % of the population with random configurations
     if gen == 1
-        for j = 1:pop_size
+        current_gen(:,:,1:num_seeded_configs) = seeded_configs;
+        for j = num_seeded_configs+1:pop_size
             current_gen(:,:,j) = create_config(num_anchs, num_osf_increments);
         end
+        
+    % After the first generation, fill population with clones and children
+    % from last generation
     else
         current_gen(:,:,1:num_children+num_clones) = next_gen;
         % Fill remaining population with random configurations
@@ -72,7 +95,7 @@ for temptime = 1:5
     end
     
     %% Evaluate population
-    
+
     parfor j = 1:pop_size
         gen_costs(j) =...
             evaluate_config(current_gen(:,:,j), rows, cols, turb_spacing,...
@@ -95,7 +118,7 @@ for temptime = 1:5
     gen_best_config =...
         [gen_best_strengthened_anchs osf_increments(gen_best_osf_selections)];
     
-    % Update overall lowest cost and respective configuration if applcble.
+    % Update overall lowest cost and respective configuration if applicable
     if gen == 1 % first generation has nothing to compare to
         min_cost = gen_min_cost;
         best_config = gen_best_config;
@@ -113,10 +136,14 @@ for temptime = 1:5
         end
     end
     
-    convergence_counter = convergence_counter + 1;
+    % Save current best values to tracking datasets
+    min_cost_tracker(gen) = min_cost;
+    gen_min_cost_tracker(gen) = gen_min_cost;
+    best_config_tracker{gen} = best_config;
+    gen_best_config_tracker{gen} = gen_best_config;
     
     % Determine if problem is considered optimized.
-    if convergence_counter == convergence_its
+    if std(gen_costs_enum) <= convergence_std
         converged = 1;
     end
     
@@ -126,27 +153,26 @@ for temptime = 1:5
         new_archive_idx, stored_configs, stored_costs, stored_num_sims);
     
     %% Generate new population
-    
+
     % Cloning: copy best chromosomes to next generation. Note that cloned
     % chromosomes are also potential parents.
     next_gen(:,:,1:num_clones) =...
         current_gen(:,:,gen_costs_enum_sorted(1:num_clones,1));
 
-    % Kill: since the algorithm and evaluation already have a high amount
-    % of stochasticity, all below-average chromosomes are removed to
-    % improve convergence speed.
-    gen_avg_cost = mean(gen_costs);
-    gen_good_costs_enum =...
-        gen_costs_enum_sorted(gen_costs_enum_sorted(:,2)>gen_avg_cost, :);
-    
+    % Kill: worst-performing individuals are removed from selection to
+    % get rid of extreme negative outliers (due to fitness function method)
+    gen_surviving_costs_enum =...
+        gen_costs_enum_sorted(1:end-num_killed, :);
+
     % Fitness function: fitness of each configuration is equal to the
-    % number of st. devs. above average it is out of the sum of total
-    % st. devs. above average.
-    gen_std = std(gen_costs);
-    gen_fitness = (gen_good_costs_enum(:,2) - gen_avg_cost) / gen_std;
+    % number of st. devs. above the worst surviving cost it is out of the
+    % sum of total st. devs. above the worst surviving cost.
+    surviving_gen_std = std(gen_surviving_costs_enum(:,2));
+    worst_surviving_cost = gen_surviving_costs_enum(end,2);
+    gen_fitness = (abs(gen_surviving_costs_enum(:,2) - worst_surviving_cost)) / surviving_gen_std;
     gen_fitness = cumsum(gen_fitness / sum(gen_fitness));
-    gen_fitness_enum = [gen_good_costs_enum(:,1) gen_fitness];
-    
+    gen_fitness_enum = [gen_surviving_costs_enum(1:end-1,1) gen_fitness(1:end-1)];
+
     % Selection: there is no practical difference between mothers and
     % fathers, they are just more intuitive to use as variables than
     % "groupofparent1s" and "groupofparent2s".
@@ -160,16 +186,33 @@ for temptime = 1:5
         next_gen(:,:,num_clones+j) = create_child(mothers(:,:,j), fathers(:,:,j));
     end
     
-
-    % Mutation: TO DO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Mutation: OSFs are shifted for a select number of children
+    mut_pop_idxs = randperm(num_children, num_mutated);
+    mut_pop = next_gen(:,:,num_clones+mut_pop_idxs);
+    for j = 1:num_mutated
+        next_gen(:,:,num_clones+mut_pop_idxs(j)) =...
+            mutate_config(mut_pop(:,:,j), mut_rate);
+    end
     
     % Print current lowest cost and best config to command window
     disp('Current best configuration:')
     disp(best_config)
     disp(['Cost: ', num2str(min_cost)])
+
 end
 
-%% After the algorithm converges, print outputs to a CSV file
+%% After the algorithm converges, export data
 t = datetime('now', 'Format', 'yyyy-MM-dd''_''HHmmss'); % current clock time
+
+% Print final outputs to a CSV file
 writematrix(min_cost, ['min_cost_',char(t),'.txt'])
 writematrix(best_config, ['best_config_',char(t),'.csv'])
+
+% Remove empty rows at the end of tracking variables and save them as .mat
+gen_min_cost_tracker(gen+1:end) = [];
+min_cost_tracker(gen+1:end) = [];
+gen_best_config_tracker(gen+1:end) = [];
+best_config_tracker(gen+1:end) = [];
+save(['optimize_strength_tracking_',char(t),'.mat'], 'min_cost_tracker',...
+    'gen_min_cost_tracker', 'best_config_tracker', 'gen_best_config_tracker')
+    
