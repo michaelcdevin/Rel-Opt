@@ -11,7 +11,7 @@ num_osf_increments = 20; % 1.05:.05:2 by default
 cross_ptg = .6; % crossover percentage
 clone_ptg = .2; % cloning percentage
 kill_ptg = .2; % kill percentage
-mut_ptg = .02; % mutation percentage (number of individuals mutated)
+mut_ptg = .05; % mutation percentage (number of individuals mutated)
 mut_rate = .1; % mutation rate (mutated genes per mutated individual)
 archive_length = 100000; % extra rows preallocated for archival variables
 
@@ -61,7 +61,7 @@ end
 converged = 0;
 new_archive_idx = 0; % index of archive variables to add new config information
 gen = 0; % generation counter
-convergence_std = 10000; % if a generation's st. dev. is <, problem is converged
+convergence_std = 5000; % if a generation's st. dev. is <, problem is converged
 
 while ~converged
     gen = gen + 1; %increment generation counter
@@ -142,8 +142,15 @@ while ~converged
     best_config_tracker{gen} = best_config;
     gen_best_config_tracker{gen} = gen_best_config;
     
+    % This is where the kill is actually performed since it is used to
+    % determine if convergence has been reached, and doing that here saves
+    % time on the final iteration.
+    gen_surviving_costs_enum =...
+        gen_costs_enum_sorted(1:end-num_killed, :);
+    surviving_gen_std = std(gen_surviving_costs_enum(:,2));
+    
     % Determine if problem is considered optimized.
-    if std(gen_costs_enum) <= convergence_std
+    if surviving_gen_std <= convergence_std
         converged = 1;
     end
     
@@ -161,13 +168,12 @@ while ~converged
 
     % Kill: worst-performing individuals are removed from selection to
     % get rid of extreme negative outliers (due to fitness function method)
-    gen_surviving_costs_enum =...
-        gen_costs_enum_sorted(1:end-num_killed, :);
-
+    % This comment is left for readability -- the actual kill calculation
+    % is done before the convergence check.
+    
     % Fitness function: fitness of each configuration is equal to the
     % number of st. devs. above the worst surviving cost it is out of the
     % sum of total st. devs. above the worst surviving cost.
-    surviving_gen_std = std(gen_surviving_costs_enum(:,2));
     worst_surviving_cost = gen_surviving_costs_enum(end,2);
     gen_fitness = (abs(gen_surviving_costs_enum(:,2) - worst_surviving_cost)) / surviving_gen_std;
     gen_fitness = cumsum(gen_fitness / sum(gen_fitness));
@@ -183,7 +189,8 @@ while ~converged
     % mother/father pairings since monogamy is not a moral value in this
     % algorithm.
     for j = 1:num_children
-        next_gen(:,:,num_clones+j) = create_child(mothers(:,:,j), fathers(:,:,j));
+        next_gen(:,:,num_clones+j) =...
+            create_child(mothers(:,:,j), fathers(:,:,j), num_anchs, rows);
     end
     
     % Mutation: OSFs are shifted for a select number of children
@@ -198,6 +205,7 @@ while ~converged
     disp('Current best configuration:')
     disp(best_config)
     disp(['Cost: ', num2str(min_cost)])
+    disp(['Generation std: ', num2str(surviving_gen_std)])
 
 end
 
