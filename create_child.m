@@ -6,8 +6,8 @@ function child = create_child(mother, father, num_anchs, rows)
 % same as the parent (OSFs can be modified via mutation).
     
     child = zeros(size(mother));
-    
-    num_crossover_pts = num_anchs / rows; % since num_anchs = rows * cols, this will always be an integer
+    options = num_anchs/rows:(num_anchs/rows)*2; % crossover set length is somewhere between a row long and 1/2 row long
+    num_crossover_pts = options(randi(length(options)));
     
     crossover_sets = reshape(1:num_anchs, [rows num_crossover_pts]);
     
