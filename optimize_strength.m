@@ -63,7 +63,7 @@ new_archive_idx = 0; % index of archive variables to add new config information
 gen = 0; % generation counter
 convergence_std = 5000; % if a generation's st. dev. is <, problem is converged
 
-for t = 1:2
+while ~converged
     gen = gen + 1; %increment generation counter
     
     %% Create population
