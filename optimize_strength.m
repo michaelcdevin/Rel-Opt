@@ -63,7 +63,7 @@ new_archive_idx = 0; % index of archive variables to add new config information
 gen = 0; % generation counter
 convergence_std = 5000; % if a generation's st. dev. is <, problem is converged
 
-while ~converged
+for t = 1:2
     gen = gen + 1; %increment generation counter
     
     %% Create population
@@ -113,10 +113,8 @@ while ~converged
     
     % Saves the lowest cost and respective configuration for the generation
     gen_min_cost = gen_costs_enum_sorted(1,2);
-    [gen_best_strengthened_anchs, gen_best_osf_selections] =...
-        find(current_gen(:,:,gen_costs_enum_sorted(1,1)));
     gen_best_config =...
-        [gen_best_strengthened_anchs osf_increments(gen_best_osf_selections)];
+        get_config_stats(current_gen(:,:,gen_costs_enum_sorted(1,1)), osf_increments);
     
     % Update overall lowest cost and respective configuration if applicable
     if gen == 1 % first generation has nothing to compare to
@@ -129,10 +127,9 @@ while ~converged
         if isequal(gen_best_config, best_config)
             min_cost = gen_min_cost;
         % If gen_best_config isn't best_config, proceed as normal.
-        elseif gen_min_cost > min_cost
+        elseif gen_min_cost < min_cost
             min_cost = gen_min_cost;
             best_config = gen_best_config;
-            convergence_counter = 0;
         end
     end
     
