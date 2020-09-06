@@ -6,10 +6,11 @@ function child = create_child(mother, father, num_anchs, rows)
 % same as the parent (OSFs can be modified via mutation).
     
     child = zeros(size(mother));
-    options = num_anchs/rows:(num_anchs/rows)*2; % crossover set length is somewhere between a row long and 1/2 row long
+    options = num_anchs/rows:(num_anchs/rows)*3; % crossover set length is somewhere between a row long and 1/2 row long
+    options = options(mod(num_anchs,options)==0);
     num_crossover_pts = options(randi(length(options)));
     
-    crossover_sets = reshape(1:num_anchs, [rows num_crossover_pts]);
+    crossover_sets = reshape(1:num_anchs, [], num_crossover_pts);
     
     for j = 1:num_crossover_pts
         prob = rand;

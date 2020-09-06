@@ -13,7 +13,7 @@ clone_ptg = .2; % cloning percentage
 kill_ptg = .2; % kill percentage
 mut_ptg = .05; % mutation percentage (number of individuals mutated)
 mut_rate = .1; % mutation rate (mutated genes per mutated individual)
-archive_length = 100000; % extra rows preallocated for archival variables
+archive_length = 50000; % extra rows preallocated for archival variables
 
 osf_increments = linspace(1.05, 2, num_osf_increments)';
 num_children = round(cross_ptg * pop_size);
