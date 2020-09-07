@@ -8,12 +8,14 @@ clc
 %% Optimization parameters
 pop_size = 100; % population size
 num_osf_increments = 20; % 1.05:.05:2 by default
-cross_ptg = .6; % crossover percentage
-clone_ptg = .2; % cloning percentage
+cross_ptg = .7; % crossover percentage
+clone_ptg = .1; % cloning percentage
 kill_ptg = .2; % kill percentage
 mut_ptg = .05; % mutation percentage (number of individuals mutated)
 mut_rate = .1; % mutation rate (mutated genes per mutated individual)
-archive_length = 50000; % extra rows preallocated for archival variables
+archive_length = 100000; % extra rows preallocated for archival variables
+tracker_length = 10000; % extra rows preallocated for tracker variables
+tracker_reset = 50; % number of generations before storing and reseting tracker variables
 
 osf_increments = linspace(1.05, 2, num_osf_increments)';
 num_children = round(cross_ptg * pop_size);
@@ -34,18 +36,20 @@ turb_anch_distance = turb_spacing * sqrt(3)/3;
 num_anchs = FindAnchors(rows, cols, turb_spacing, turb_anch_distance, num_turbs);
 
 %% Preallocate matrices
-current_gen = zeros(num_anchs, num_osf_increments, pop_size);
-next_gen = zeros(num_anchs, num_osf_increments, num_children + num_clones);
-gen_archive_idxs = zeros(pop_size, 1);
-stored_configs = zeros(num_anchs, num_osf_increments, archive_length);
-stored_costs = zeros(archive_length, 1);
-stored_num_sims = zeros(archive_length, 1);
-gen_costs = zeros(pop_size, 1);
-gen_costs_enum = zeros(pop_size, 2);
-gen_min_cost_tracker = zeros(archive_length,1);
-gen_best_config_tracker = cell(archive_length,1);
-min_cost_tracker = zeros(archive_length,1);
-best_config_tracker = cell(archive_length,1);
+% The data type specifications are due to memory space issues if default.
+current_gen = zeros(num_anchs, num_osf_increments, pop_size, 'uint8');
+next_gen = zeros(num_anchs, num_osf_increments, num_children + num_clones, 'uint8');
+gen_archive_idxs = zeros(pop_size, 1, 'uint32');
+stored_configs = zeros(num_anchs, num_osf_increments, archive_length, 'uint8');
+stored_costs = zeros(archive_length, 1, 'single');
+stored_num_sims = zeros(archive_length, 1, 'uint32');
+gen_costs = zeros(pop_size, 1, 'single');
+gen_costs_enum = zeros(pop_size, 2, 'single');
+tracker = struct('best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
+       'gen_best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
+       'min_cost', zeros(tracker_reset, 1, 'single'),...
+       'gen_min_cost', zeros(tracker_reset, 1, 'single'));
+tracker_filenames = strings(round(tracker_length/tracker_reset), 1);
 
 %% Load seeded configurations
 seeding_file = 'seeded_configs_10x10.mat';
@@ -62,6 +66,7 @@ converged = 0;
 new_archive_idx = 0; % index of archive variables to add new config information
 gen = 0; % generation counter
 convergence_std = 5000; % if a generation's st. dev. is <, problem is converged
+num_tracker_files = 0;
 
 while ~converged
     gen = gen + 1; %increment generation counter
@@ -74,6 +79,7 @@ while ~converged
     % of the population with random configurations
     if gen == 1
         current_gen(:,:,1:num_seeded_configs) = seeded_configs;
+        clear seeded_configs
         for j = num_seeded_configs+1:pop_size
             current_gen(:,:,j) = create_config(num_anchs, num_osf_increments);
         end
@@ -133,11 +139,11 @@ while ~converged
         end
     end
     
-    % Save current best values to tracking datasets
-    min_cost_tracker(gen) = min_cost;
-    gen_min_cost_tracker(gen) = gen_min_cost;
-    best_config_tracker{gen} = best_config;
-    gen_best_config_tracker{gen} = gen_best_config;
+    % Save current best values to tracker struct
+    tracker.min_cost(gen) = min_cost;
+    tracker.gen_min_cost(gen) = gen_min_cost;
+    tracker.best_config(:, :, gen) = [best_config; zeros(num_anchs-length(best_config), 2)];
+    tracker.gen_best_config(:, :, gen) = [gen_best_config; zeros(num_anchs-length(gen_best_config), 2)];
     
     % This is where the kill is actually performed since it is used to
     % determine if convergence has been reached, and doing that here saves
@@ -152,7 +158,7 @@ while ~converged
     end
     
     % Update archives
-    [stored_configs, stored_costs, stored_num_sims] =...
+    [stored_configs, stored_costs, stored_num_sims, new_archive_idx] =...
         update_archives(current_gen, gen_costs, num_sims, gen_archive_idxs,...
         new_archive_idx, stored_configs, stored_costs, stored_num_sims);
     
@@ -189,6 +195,7 @@ while ~converged
         next_gen(:,:,num_clones+j) =...
             create_child(mothers(:,:,j), fathers(:,:,j), num_anchs, rows);
     end
+    clear mothers fathers
     
     % Mutation: OSFs are shifted for a select number of children
     mut_pop_idxs = randperm(num_children, num_mutated);
@@ -197,12 +204,27 @@ while ~converged
         next_gen(:,:,num_clones+mut_pop_idxs(j)) =...
             mutate_config(mut_pop(:,:,j), mut_rate);
     end
+    clear mut_pop
     
     % Print current lowest cost and best config to command window
     disp('Current best configuration:')
     disp(best_config)
     disp(['Cost: ', num2str(min_cost)])
     disp(['Generation std: ', num2str(surviving_gen_std)])
+    
+    % To save memory, store tracking variables to hard disk every tracker_reset
+    % generations. These will all be appended after convergence.
+    if mod(gen,tracker_reset) == 0
+        num_tracker_files = num_tracker_files + 1;
+        tracker_filenames(num_tracker_files) =...
+            ['optimize_strength_tracking_gen_',num2str(gen),'.mat'];
+        save(tracker_filenames(num_tracker_files), 'tracker')
+        tracker = struct('best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
+           'gen_best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
+           'min_cost', zeros(tracker_reset, 1, 'single'),...
+           'gen_min_cost', zeros(tracker_reset, 1, 'single')); %reset tracker
+    end
+            
 
 end
 
@@ -213,11 +235,33 @@ t = datetime('now', 'Format', 'yyyy-MM-dd''_''HHmmss'); % current clock time
 writematrix(min_cost, ['min_cost_',char(t),'.txt'])
 writematrix(best_config, ['best_config_',char(t),'.csv'])
 
-% Remove empty rows at the end of tracking variables and save them as .mat
-gen_min_cost_tracker(gen+1:end) = [];
-min_cost_tracker(gen+1:end) = [];
-gen_best_config_tracker(gen+1:end) = [];
-best_config_tracker(gen+1:end) = [];
-save(['optimize_strength_tracking_',char(t),'.mat'], 'min_cost_tracker',...
-    'gen_min_cost_tracker', 'best_config_tracker', 'gen_best_config_tracker')
-    
+% Remove empty rows at the end of tracking variable and combine all saved
+% tracking data.
+if gen_min_cost(end) ~= 0
+    tracker.gen_min_cost(gen-(num_tracker_files*tracker_reset)+1:end) = [];
+    tracker.min_cost(gen-(num_tracker_files*tracker_reset)+1:end) = [];
+    tracker.gen_best_config(:,:,gen-(num_tracker_files*tracker_reset)+1:end) = [];
+    tracker.best_config(:,:,gen-(num_tracker_files*tracker_reset)+1:end) = [];
+end
+
+final_tracker_filename = ['optimize_strength_tracking_',char(t),'.mat'];
+final_tracker = struct('best_config', zeros(120, 2, gen, 'single'),...
+       'gen_best_config', zeros(120, 2, gen, 'single'),...
+       'min_cost', zeros(gen, 1, 'single'),...
+       'gen_min_cost', zeros(gen, 1, 'single'));
+idx = 1;
+for j = 1:num_tracker_files
+    saved_tracker = importdata(tracker_filenames(j));
+    final_tracker.best_config(:,:,idx:idx+size(saved_tracker.best_config,3)-1) = saved_tracker.best_config;
+    final_tracker.gen_best_config(:,:,idx:idx+size(saved_tracker.gen_best_config,3)-1) = saved_tracker.gen_best_config;
+    final_tracker.min_cost(idx:idx+length(saved_tracker.min_cost)-1) = saved_tracker.min_cost;
+    final_tracker.gen_min_cost(idx:idx+length(saved_tracker.gen_min_cost)-1) = saved_tracker.gen_min_cost;
+    idx = idx + size(saved_tracker.best_config, 3) - 1;
+    delete(tracker_filenames(j))
+    clear saved_tracker
+end
+final_tracker.best_config(:,:,idx:idx+size(tracker.best_config,3)-1) = tracker.best_config;
+final_tracker.gen_best_config(:,:,idx:idx+size(tracker.gen_best_config,3)-1) = tracker.gen_best_config;
+final_tracker.min_cost(idx:idx+length(tracker.min_cost)-1) = tracker.min_cost;
+final_tracker.gen_min_cost(idx:idx+length(tracker.gen_min_cost)-1) = tracker.gen_min_cost;
+save(final_tracker_filename, 'final_tracker')

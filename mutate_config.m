@@ -9,12 +9,15 @@ function mutated_config = mutate_config(config, mut_rate)
     
     % Randomly shift OSFs +/- 2 of its original values
     new_osf_selections = osf_selections + randi([-2 2], [length(osf_selections) 1]);
-        % keep mutations within the bounds of the array
-    new_osf_selections(new_osf_selections<1) = 1;
-    new_osf_selections(new_osf_selections>size(config,2)) = size(config,2); 
+        % Keep mutations within the upper bounds of the array
+    new_osf_selections(new_osf_selections>size(config,2)) = size(config,2);
     
     % Remove original OSF value
     config(strengthened_anchs(mut_anchs), :) = 0;
+    
+    % Unstrengthen anchors that mutate beneath the minimum OSF
+    new_osf_selections(new_osf_selections<1) = [];
+    strengthened_anchs(new_osf_selections<1) = [];
     
     % Apply new OSF values (note there is a chance that this is unchanged
     % for some anchors).

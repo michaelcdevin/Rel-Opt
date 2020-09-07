@@ -21,11 +21,11 @@ function config_cost =...
     
     % config archived: retrieve stored values, simulate for num_sims/2 times.
     elseif archive_idx > 0
-        old_cost = stored_costs(archive_idx);
+        old_cost = double(stored_costs(archive_idx));
         added_cost = Failure_Cost_Compute(strengthened_anchs, osf_selections,...
             rows, cols, turb_spacing, design_type, round(num_sims/2), theta);
-        config_cost = (old_cost * (stored_num_sims(archive_idx)/num_sims) + (added_cost/2)) /...
-            ((stored_num_sims(archive_idx) + num_sims/2)/num_sims);
+        config_cost = single(old_cost * (double(stored_num_sims(archive_idx)/num_sims)) + (added_cost/2)) /...
+            (double((stored_num_sims(archive_idx)) + num_sims/2)/num_sims);
     end
         
 end
