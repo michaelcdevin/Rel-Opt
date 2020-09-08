@@ -6,15 +6,15 @@ clear
 clc
 
 %% Optimization parameters
-pop_size = 100; % population size
+pop_size = 50; % population size
 num_osf_increments = 20; % 1.05:.05:2 by default
 cross_ptg = .7; % crossover percentage
 clone_ptg = .1; % cloning percentage
 kill_ptg = .2; % kill percentage
-mut_ptg = .05; % mutation percentage (number of individuals mutated)
+mut_ptg = .1; % mutation percentage (number of individuals mutated)
 mut_rate = .1; % mutation rate (mutated genes per mutated individual)
 archive_length = 100000; % extra rows preallocated for archival variables
-tracker_length = 10000; % extra rows preallocated for tracker variables
+max_gen = 10000; % extra rows preallocated for tracker variables
 tracker_reset = 50; % number of generations before storing and reseting tracker variables
 
 osf_increments = linspace(1.05, 2, num_osf_increments)';
@@ -49,7 +49,7 @@ tracker = struct('best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
        'gen_best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
        'min_cost', zeros(tracker_reset, 1, 'single'),...
        'gen_min_cost', zeros(tracker_reset, 1, 'single'));
-tracker_filenames = strings(round(tracker_length/tracker_reset), 1);
+tracker_filenames = strings(round(max_gen/tracker_reset), 1);
 
 %% Load seeded configurations
 seeding_file = 'seeded_configs_10x10.mat';
@@ -65,11 +65,14 @@ end
 converged = 0;
 new_archive_idx = 0; % index of archive variables to add new config information
 gen = 0; % generation counter
-convergence_std = 5000; % if a generation's st. dev. is <, problem is converged
+convergence_std = 50000; % if a generation's st. dev. is <, problem is converged
 num_tracker_files = 0;
 
-while ~converged
+for temptime = 1:5
     gen = gen + 1; %increment generation counter
+    if gen == max_gen % hard stop loop in case it can't converge
+        converged = 1;
+    end
     
     %% Create population
     % Rows are different anchors, columns are different OSFs, pages are
@@ -153,6 +156,7 @@ while ~converged
     gen_surviving_costs_enum =...
         gen_costs_enum_sorted(1:end-num_killed, :);
     surviving_gen_std = std(gen_surviving_costs_enum(:,2));
+    disp(gen_surviving_costs_enum)
     
     % Determine if problem is considered optimized.
     if surviving_gen_std <= convergence_std
@@ -219,7 +223,8 @@ while ~converged
     gen_fitness = (abs(gen_surviving_costs_enum(:,2) - worst_surviving_cost)) / surviving_gen_std;
     gen_fitness = cumsum(gen_fitness / sum(gen_fitness));
     gen_fitness_enum = [gen_surviving_costs_enum(1:end-1,1) gen_fitness(1:end-1)];
-
+    disp(gen_fitness_enum)
+    
     % Selection: there is no practical difference between mothers and
     % fathers, they are just more intuitive to use as variables than
     % "groupofparent1s" and "groupofparent2s".
@@ -245,10 +250,10 @@ while ~converged
     clear mut_pop
     
     % Print current lowest cost and best config to command window
-    disp('Current best configuration:')
-    disp(best_config)
-    disp(['Cost: ', num2str(min_cost)])
-    disp(['Generation std: ', num2str(surviving_gen_std)])
+%     disp('Current best configuration:')
+%     disp(best_config)
+%     disp(['Cost: ', num2str(min_cost)])
+%     disp(['Generation std: ', num2str(surviving_gen_std)])
     
     % To save memory, store tracking variables to hard disk every tracker_reset
     % generations. These will all be appended after convergence.

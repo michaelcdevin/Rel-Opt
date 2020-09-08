@@ -17,15 +17,22 @@ function [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness
     mother_probs_diff(mother_probs_diff<0) = nan;
     [~, mother_idxs] = min(mother_probs_diff);
     
-    % Map selected indices to the original configs
-    mother_config_nums = gen_fitness_enum(mother_idxs, 1);
-    mothers = current_gen(:,:,mother_config_nums);
-    
     % Repeat process for second parent
     father_probs_diff = fitness_repmat - father_probs';
     father_probs_diff(father_probs_diff<0) = nan;
     [~, father_idxs] = min(father_probs_diff);
+    
+    % To help preserve population diversity, prevent the mother and father
+    % from being the same config (unless both parents are the least fit
+    % individual due to an indexing error, although this is very unlikely
+    % to happen)
+    incest_combos = find(mother_idxs==father_idxs);
+    incest_combos = incest_combos(incest_combos~=length(gen_fitness_enum));
+    father_idxs(incest_combos) = father_idxs(incest_combos) + 1;
+    
+    % Map selected indices to the original configs
+    mother_config_nums = gen_fitness_enum(mother_idxs, 1);
+    mothers = current_gen(:,:,mother_config_nums);
     father_config_nums = gen_fitness_enum(father_idxs, 1);
     fathers = current_gen(:,:,father_config_nums);
-    
 end
