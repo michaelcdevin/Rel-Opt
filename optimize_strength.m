@@ -6,7 +6,7 @@ clear
 clc
 
 %% Optimization parameters
-pop_size = 50; % population size
+pop_size = 100; % population size
 num_osf_increments = 20; % 1.05:.05:2 by default
 cross_ptg = .7; % crossover percentage
 clone_ptg = .1; % cloning percentage
@@ -68,7 +68,7 @@ gen = 0; % generation counter
 convergence_std = 50000; % if a generation's st. dev. is <, problem is converged
 num_tracker_files = 0;
 
-for temptime = 1:5
+while ~converged
     gen = gen + 1; %increment generation counter
     if gen == max_gen % hard stop loop in case it can't converge
         converged = 1;
@@ -250,10 +250,10 @@ for temptime = 1:5
     clear mut_pop
     
     % Print current lowest cost and best config to command window
-%     disp('Current best configuration:')
-%     disp(best_config)
-%     disp(['Cost: ', num2str(min_cost)])
-%     disp(['Generation std: ', num2str(surviving_gen_std)])
+    disp('Current best configuration:')
+    disp(best_config)
+    disp(['Cost: ', num2str(min_cost)])
+    disp(['Generation std: ', num2str(surviving_gen_std)])
     
     % To save memory, store tracking variables to hard disk every tracker_reset
     % generations. These will all be appended after convergence.
