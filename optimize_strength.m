@@ -140,10 +140,12 @@ while ~converged
     end
     
     % Save current best values to tracker struct
-    tracker.min_cost(gen) = min_cost;
-    tracker.gen_min_cost(gen) = gen_min_cost;
-    tracker.best_config(:, :, gen) = [best_config; zeros(num_anchs-length(best_config), 2)];
-    tracker.gen_best_config(:, :, gen) = [gen_best_config; zeros(num_anchs-length(gen_best_config), 2)];
+    tracker.min_cost(gen-(num_tracker_files*tracker_reset)) = min_cost;
+    tracker.gen_min_cost(gen-(num_tracker_files*tracker_reset)) = gen_min_cost;
+    tracker.best_config(:, :, gen-(num_tracker_files*tracker_reset)) =...
+        [best_config; zeros(num_anchs-length(best_config), 2)];
+    tracker.gen_best_config(:, :, gen-(num_tracker_files*tracker_reset)) =...
+        [gen_best_config; zeros(num_anchs-length(gen_best_config), 2)];
     
     % This is where the kill is actually performed since it is used to
     % determine if convergence has been reached, and doing that here saves
@@ -157,10 +159,46 @@ while ~converged
         converged = 1;
     end
     
-    % Update archives
-    [stored_configs, stored_costs, stored_num_sims, new_archive_idx] =...
-        update_archives(current_gen, gen_costs, num_sims, gen_archive_idxs,...
-        new_archive_idx, stored_configs, stored_costs, stored_num_sims);
+    % Update archives. This section is a direct copy-and-paste from the
+    % update_archives function. It is included here to prevent array
+    % duplication, as stored_configs in particular is a very large array
+    % and runs into memory issues if duplicated.
+    for j = 1:length(gen_costs)
+        % config not in archive
+        if gen_archive_idxs(j) == 0
+            % check how many times new config appears in current_gen
+            % (otherwise, this could lead to the same config being archived
+            % twice using two indices)
+            gen_config_occurrences = find(all(current_gen(:,:,j)==current_gen, [1 2]));
+            
+            if j == min(gen_config_occurrences)
+                
+                if length(gen_config_occurrences) == 1
+                % if this is the only occurrence of this config in current_gen,
+                % add a new archive entry (this happens the vast majority of
+                % the time)
+                    new_archive_idx = new_archive_idx + 1;
+                    stored_configs(:,:,new_archive_idx) = current_gen(:,:,j);
+                    stored_costs(new_archive_idx) = gen_costs(j);
+                    stored_num_sims(new_archive_idx) = num_sims;
+                
+                elseif length(gen_config_occurrences) > 1 
+                % if there are other identical configs in current_gen,
+                % create one new archive entry that covers all of them.
+                    new_archive_idx = new_archive_idx + 1;
+                    stored_configs(:,:,new_archive_idx) = current_gen(:,:,j);
+                    stored_costs(new_archive_idx) = mean(gen_costs(gen_config_occurrences));
+                    stored_num_sims(new_archive_idx) = num_sims * length(gen_config_occurrences);
+                end
+            end
+        
+        % if config is in archive, update archive values
+        elseif gen_archive_idxs(j) > 0
+            stored_costs(gen_archive_idxs(j)) = gen_costs(j);
+            stored_num_sims(gen_archive_idxs(j)) =...
+                stored_num_sims(gen_archive_idxs(j)) + num_sims/2;
+        end
+    end
     
     %% Generate new population
 
