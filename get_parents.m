@@ -27,7 +27,7 @@ function [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness
     % individual due to an indexing error, although this is very unlikely
     % to happen)
     incest_combos = find(mother_idxs==father_idxs);
-    incest_combos = incest_combos(incest_combos~=length(gen_fitness_enum));
+    incest_combos = incest_combos(father_idxs(incest_combos)~=length(gen_fitness_enum));
     father_idxs(incest_combos) = father_idxs(incest_combos) + 1;
     
     % Map selected indices to the original configs

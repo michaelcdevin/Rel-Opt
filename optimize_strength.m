@@ -22,6 +22,7 @@ num_children = round(cross_ptg * pop_size);
 num_clones = round(clone_ptg * pop_size);
 num_killed = round(kill_ptg * pop_size);
 num_mutated = round(mut_ptg * pop_size);
+num_for_convergence = num_clones + round(num_children/2); % individuals used to determine convergence
 
 %% Evaluation parameters
 rows = 10;
@@ -65,7 +66,8 @@ end
 converged = 0;
 new_archive_idx = 0; % index of archive variables to add new config information
 gen = 0; % generation counter
-convergence_std = 50000; % if a generation's st. dev. is <, problem is converged
+num_convergence_gens = 100; % # of generations the optima must remain unchanged before considered converged
+gens_as_best = 0; % # of generation the optima has remained unchanged
 num_tracker_files = 0;
 
 while ~converged
@@ -129,16 +131,19 @@ while ~converged
     if gen == 1 % first generation has nothing to compare to
         min_cost = gen_min_cost;
         best_config = gen_best_config;
+        gens_as_best = gens_as_best + 1; % gens_as_best = 1
     else % after the first generation
         % Since an identical config can result in different costs, this
         % prevents an inaccurately low cost for a specific configuration
         % being saved for all time.
         if isequal(gen_best_config, best_config)
             min_cost = gen_min_cost;
+            gens_as_best = gens_as_best + 1;
         % If gen_best_config isn't best_config, proceed as normal.
         elseif gen_min_cost < min_cost
             min_cost = gen_min_cost;
             best_config = gen_best_config;
+            gens_as_best = 1; % since config changes, resets convergence counter
         end
     end
     
@@ -150,16 +155,8 @@ while ~converged
     tracker.gen_best_config(:, :, gen-(num_tracker_files*tracker_reset)) =...
         [gen_best_config; zeros(num_anchs-length(gen_best_config), 2)];
     
-    % This is where the kill is actually performed since it is used to
-    % determine if convergence has been reached, and doing that here saves
-    % time on the final iteration.
-    gen_surviving_costs_enum =...
-        gen_costs_enum_sorted(1:end-num_killed, :);
-    surviving_gen_std = std(gen_surviving_costs_enum(:,2));
-    disp(gen_surviving_costs_enum)
-    
     % Determine if problem is considered optimized.
-    if surviving_gen_std <= convergence_std
+    if gens_as_best >= num_convergence_gens
         converged = 1;
     end
     
@@ -213,8 +210,9 @@ while ~converged
 
     % Kill: worst-performing individuals are removed from selection to
     % get rid of extreme negative outliers (due to fitness function method)
-    % This comment is left for readability -- the actual kill calculation
-    % is done before the convergence check.
+    gen_surviving_costs_enum =...
+        gen_costs_enum_sorted(1:end-num_killed, :);
+    surviving_gen_std = std(gen_surviving_costs_enum(:,2));
     
     % Fitness function: fitness of each configuration is equal to the
     % number of st. devs. above the worst surviving cost it is out of the
