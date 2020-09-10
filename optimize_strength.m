@@ -133,13 +133,14 @@ while ~converged
         best_config = gen_best_config;
         gens_as_best = gens_as_best + 1; % gens_as_best = 1
     else % after the first generation
-        % Since an identical config can result in different costs, this
-        % prevents an inaccurately low cost for a specific configuration
-        % being saved for all time.
+        % Upate cost for old optimum so the config cost remains accurate
+        % Note min_cost may not equal the actual new minimum until the end
+        % of these nested if statements.
+        min_cost = gen_costs_enum(1,2);
         if isequal(gen_best_config, best_config)
-            min_cost = gen_min_cost;
             gens_as_best = gens_as_best + 1;
-        % If gen_best_config isn't best_config, proceed as normal.
+        % If gen_best_config isn't best_config, update min_cost and
+        % best_config to reflect the new best configuration.
         elseif gen_min_cost < min_cost
             min_cost = gen_min_cost;
             best_config = gen_best_config;
