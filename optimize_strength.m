@@ -222,7 +222,6 @@ while ~converged
     gen_fitness = (abs(gen_surviving_costs_enum(:,2) - worst_surviving_cost)) / surviving_gen_std;
     gen_fitness = cumsum(gen_fitness / sum(gen_fitness));
     gen_fitness_enum = [gen_surviving_costs_enum(1:end-1,1) gen_fitness(1:end-1)];
-    disp(gen_fitness_enum)
     
     % Selection: there is no practical difference between mothers and
     % fathers, they are just more intuitive to use as variables than
@@ -235,7 +234,7 @@ while ~converged
     % algorithm.
     for j = 1:num_children
         next_gen(:,:,num_clones+j) =...
-            create_child(mothers(:,:,j), fathers(:,:,j), num_anchs, rows);
+            create_child(mothers(:,:,j), fathers(:,:,j));
     end
     clear mothers fathers
     

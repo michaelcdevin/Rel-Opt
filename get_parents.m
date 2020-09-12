@@ -25,7 +25,7 @@ function [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness
     % To help preserve population diversity, prevent the mother and father
     % from being the same config (unless both parents are the least fit
     % individual due to an indexing error, although this is very unlikely
-    % to happen)
+    % to happen).
     incest_combos = find(mother_idxs==father_idxs);
     incest_combos = incest_combos(father_idxs(incest_combos)~=length(gen_fitness_enum));
     father_idxs(incest_combos) = father_idxs(incest_combos) + 1;
