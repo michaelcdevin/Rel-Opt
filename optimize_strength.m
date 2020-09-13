@@ -41,6 +41,7 @@ num_anchs = FindAnchors(rows, cols, turb_spacing, turb_anch_distance, num_turbs)
 current_gen = zeros(num_anchs, num_osf_increments, pop_size, 'uint8');
 next_gen = zeros(num_anchs, num_osf_increments, num_children + num_clones, 'uint8');
 gen_archive_idxs = zeros(pop_size, 1, 'uint32');
+gen_config_occurrences = cell(pop_size, 1, 'uint8');
 stored_configs = zeros(num_anchs, num_osf_increments, archive_length, 'uint8');
 stored_costs = zeros(archive_length, 1, 'single');
 stored_num_sims = zeros(archive_length, 1, 'uint32');
@@ -102,7 +103,18 @@ while ~converged
     % Find members of population stored in archive, and get the archive
     % indices for the population.
     for j = 1:pop_size
-        gen_archive_idxs(j) = get_archive_idx(current_gen(:,:,j), stored_configs);
+
+        % Search archives to see if config has been encountered before
+        archive_idx = find(all(current_gen(:,:,j)==stored_configs, [1 2]));
+
+        % Config is not in archive
+        if isempty(archive_idx)
+            archive_idx = 0;
+        end
+        
+        % Find repeat configs in population. This is important for
+        % crossover later on.
+        gen_config_occurrences{j} = find(all(current_gen(:,:,j)==current_gen, [1 2]));
     end
     
     %% Evaluate population
@@ -171,11 +183,9 @@ while ~converged
             % check how many times new config appears in current_gen
             % (otherwise, this could lead to the same config being archived
             % twice using two indices)
-            gen_config_occurrences = find(all(current_gen(:,:,j)==current_gen, [1 2]));
             
-            if j == min(gen_config_occurrences)
-                
-                if length(gen_config_occurrences) == 1
+            if j == min(gen_config_occurrences{j})
+                if length(gen_config_occurrences{j}) == 1
                 % if this is the only occurrence of this config in current_gen,
                 % add a new archive entry (this happens the vast majority of
                 % the time)
@@ -184,13 +194,13 @@ while ~converged
                     stored_costs(new_archive_idx) = gen_costs(j);
                     stored_num_sims(new_archive_idx) = num_sims;
                 
-                elseif length(gen_config_occurrences) > 1 
+                elseif length(gen_config_occurrences{j}) > 1 
                 % if there are other identical configs in current_gen,
                 % create one new archive entry that covers all of them.
                     new_archive_idx = new_archive_idx + 1;
                     stored_configs(:,:,new_archive_idx) = current_gen(:,:,j);
-                    stored_costs(new_archive_idx) = mean(gen_costs(gen_config_occurrences));
-                    stored_num_sims(new_archive_idx) = num_sims * length(gen_config_occurrences);
+                    stored_costs(new_archive_idx) = mean(gen_costs(gen_config_occurrences{j}));
+                    stored_num_sims(new_archive_idx) = num_sims * length(gen_config_occurrences{j});
                 end
             end
         
@@ -226,7 +236,7 @@ while ~converged
     % Selection: there is no practical difference between mothers and
     % fathers, they are just more intuitive to use as variables than
     % "groupofparent1s" and "groupofparent2s".
-    [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness_enum);
+    [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness_enum, gen_config_occurrences);
 
     % Crossover: Each mother/father pairing produces 1 child, but there is
     % nothing preventing the same config from being used for multiple

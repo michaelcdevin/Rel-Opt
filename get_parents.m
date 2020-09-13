@@ -1,4 +1,4 @@
-function [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness_enum)
+function [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness_enum, gen_config_occurrences)
 
 % Selects the parents for a generation based on fitness.
 % Probabilities are randomly generated from 0 to 1, and each
@@ -16,23 +16,26 @@ function [mothers, fathers] = get_parents(num_children, current_gen, gen_fitness
     mother_probs_diff = fitness_repmat - mother_probs';
     mother_probs_diff(mother_probs_diff<0) = nan;
     [~, mother_idxs] = min(mother_probs_diff);
+    mother_config_nums = gen_fitness_enum(mother_idxs, 1);
     
     % Repeat process for second parent
     father_probs_diff = fitness_repmat - father_probs';
     father_probs_diff(father_probs_diff<0) = nan;
     [~, father_idxs] = min(father_probs_diff);
+    father_config_nums = gen_fitness_enum(father_idxs, 1);
     
     % To help preserve population diversity, prevent the mother and father
-    % from being the same config (unless both parents are the least fit
-    % individual due to an indexing error, although this is very unlikely
-    % to happen).
-    incest_combos = find(mother_idxs==father_idxs);
-    incest_combos = incest_combos(father_idxs(incest_combos)~=length(gen_fitness_enum));
-    father_idxs(incest_combos) = father_idxs(incest_combos) + 1;
+    % from being the same config. If this does occur, change the father to
+    % the next fittest individual.
+    for j = 1:num_children
+        if all(ismember([mother_config_nums(j);father_config_nums(j)], gen_config_occurrences{j}))
+            nonincest_nums = find(~ismember(1:length(gen_fitness_enum), gen_config_occurrences{j}));
+            [~,replacement_idx] = min(abs(nonincest_nums-father_config_nums(j)));
+            father_config_nums(j) = nonincest_nums(replacement_idx(end));
+        end
+    end
     
     % Map selected indices to the original configs
-    mother_config_nums = gen_fitness_enum(mother_idxs, 1);
     mothers = current_gen(:,:,mother_config_nums);
-    father_config_nums = gen_fitness_enum(father_idxs, 1);
     fathers = current_gen(:,:,father_config_nums);
 end
