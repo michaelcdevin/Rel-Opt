@@ -7,15 +7,17 @@ function[failure_cost] = failure_cost(LineFailState, AnchorFail, IndAnchs,...
 % energy from downtime.
 
 % Constants
-line_cost = 208750;
-substructure_repair_cost = 323716;
+line_cost = 208750; % $/line (
+substructure_repair_cost = 343720; % $/anchor
+turbine_tow_cost = 727942; % $/turbine
 cable_material_cost = 481; % $/m
 cable_repair_cost = 154; % $/m
 cable_length = TADistance*2; % cables won't actually run collinear with mooring, but it's a good estimate to account for water depth + slack
 LCOE = 132; % $/MWh, as per NREL in 2018 Cost of Wind Energy report
 max_turbine_power_output = 5; % MW
 turbine_capacity_factor = .44;
-vessel_transit_time = 3; % hours (each way, but only consider trip there for downtime)
+ahts_transit_time_notow = 3; % hours (each way, but only consider trip there for downtime)
+ahts_transit_time_tow = 10; % hours
 anchor_repair_time = 14; % hours
 line_repair_time = 4; % hours
 cable_laying_rate = 400; % m/day
@@ -71,8 +73,8 @@ end
 % failures, but still uses the same downtime length. This assumes that
 % line-only failures and cable repairs are handled in the same weather
 % window as anchor failures.
-anchor_downtime = weather_delay_time + vessel_transit_time + anchor_repair_time;
-line_downtime = weather_delay_time + vessel_transit_time + line_repair_time;
+anchor_downtime = weather_delay_time + ahts_transit_time_notow + anchor_repair_time;
+line_downtime = weather_delay_time + ahts_transit_time_notow + line_repair_time;
 cable_downtime = weather_delay_time + cable_length / (cable_laying_rate * 12);
 
 % Calculate power loss cost-equivalent from downtime lengths and total

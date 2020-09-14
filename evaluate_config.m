@@ -1,7 +1,7 @@
 function config_cost =...
     evaluate_config(config, rows, cols,...
     turb_spacing, design_type, num_sims, theta, osf_increments,...
-    archive_idx, stored_costs, stored_num_sims)
+    gen_stored_cost, gen_stored_num_sims)
 
 % Evaluates the cost of a specified configuration. If the config has been
 % encountered before, the archived cost is retrieved, averaged with a new
@@ -15,17 +15,17 @@ function config_cost =...
     osf_selections = osf_increments(osf_selections);
 
     % config not archived: simulate num_sims times.
-    if archive_idx == 0
+    if gen_stored_cost == 0
         config_cost = Failure_Cost_Compute(strengthened_anchs, osf_selections,...
             rows, cols, turb_spacing, design_type, num_sims, theta);
     
     % config archived: retrieve stored values, simulate for num_sims/2 times.
-    elseif archive_idx > 0
-        old_cost = double(stored_costs(archive_idx));
+    elseif gen_stored_cost > 0
+        old_cost = double(gen_stored_cost);
         added_cost = Failure_Cost_Compute(strengthened_anchs, osf_selections,...
             rows, cols, turb_spacing, design_type, round(num_sims/2), theta);
-        config_cost = single(((old_cost * (double(stored_num_sims(archive_idx))/num_sims)) + (added_cost/2)) /...
-            ((double(stored_num_sims(archive_idx)) + num_sims/2)/num_sims));
+        config_cost = single(((old_cost * (double(gen_stored_num_sims)/num_sims)) + (added_cost/2)) /...
+            ((double(gen_stored_num_sims) + num_sims/2)/num_sims));
     end
         
 end

@@ -6,7 +6,7 @@ clear
 clc
 
 %% Optimization parameters
-pop_size = 100; % population size
+pop_size = 10; % population size
 num_osf_increments = 20; % 1.05:.05:2 by default
 cross_ptg = .7; % crossover percentage
 clone_ptg = .1; % cloning percentage
@@ -41,10 +41,12 @@ num_anchs = FindAnchors(rows, cols, turb_spacing, turb_anch_distance, num_turbs)
 current_gen = zeros(num_anchs, num_osf_increments, pop_size, 'uint8');
 next_gen = zeros(num_anchs, num_osf_increments, num_children + num_clones, 'uint8');
 gen_archive_idxs = zeros(pop_size, 1, 'uint32');
-gen_config_occurrences = cell(pop_size, 1, 'uint8');
+gen_config_occurrences = cell(pop_size, 1);
 stored_configs = zeros(num_anchs, num_osf_increments, archive_length, 'uint8');
 stored_costs = zeros(archive_length, 1, 'single');
 stored_num_sims = zeros(archive_length, 1, 'uint32');
+gen_stored_costs = zeros(pop_size, 1, 'single');
+gen_stored_num_sims = zeros(pop_size, 1, 'uint32');
 gen_costs = zeros(pop_size, 1, 'single');
 gen_costs_enum = zeros(pop_size, 2, 'single');
 tracker = struct('best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
@@ -101,15 +103,19 @@ while ~converged
     end
     
     % Find members of population stored in archive, and get the archive
-    % indices for the population.
+    % data for the population.
     for j = 1:pop_size
-
         % Search archives to see if config has been encountered before
         archive_idx = find(all(current_gen(:,:,j)==stored_configs, [1 2]));
-
         % Config is not in archive
         if isempty(archive_idx)
-            archive_idx = 0;
+            gen_archive_idxs(j) = 0;
+            gen_stored_costs(j) = 0;
+            gen_stored_num_sims(j) = 0;
+        else
+            gen_archive_idxs(j) = archive_idx;
+            gen_stored_costs(j) = stored_costs(gen_archive_idxs(j));
+            gen_stored_num_sims(j) = stored_num_sims(gen_archive_idxs(j));
         end
         
         % Find repeat configs in population. This is important for
@@ -123,7 +129,7 @@ while ~converged
         gen_costs(j) =...
             evaluate_config(current_gen(:,:,j), rows, cols, turb_spacing,...
             design_type, num_sims, theta, osf_increments,...
-            gen_archive_idxs(j), stored_costs, stored_num_sims);
+            gen_stored_costs(j), gen_stored_num_sims(j));
         
         % gen_costs is enumerated so costs can be ranked without losing the
         % link to the respective configurations
