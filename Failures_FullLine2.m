@@ -1,14 +1,10 @@
 function[LineFail,AnchorFail,TurbFail,LineStrengths,AnchorStrengths,...
-    TurbFailState,TurbX,TurbY,IndAnchs] =...
+    TurbFailState,TurbX,TurbY] =...
     Failures_FullLine2(AnchorStrengths,AnchorDemands,LineStrengths,...
     LineDemands,TurbFail,TurbX,TurbY,TList,ALC,D)
 
 %% Start with line failures
 LineFail = LineDemands >= LineStrengths;
-
-% IndLineFails designates line failures unrelated to anchor failures
-[IndLineFails,~] = find(LineFail);
-IndLineFails = unique(IndLineFails);
 
 %% Next, find anchor failures
 AnchorFail = AnchorDemands >= AnchorStrengths;
@@ -18,18 +14,9 @@ AnchorStrengths(AnchorFail) = 0;
 
 % Next, fail the lines connected to the failed anchors
 LF = ALC(AnchorFail,:);
-AnchLineFails = reshape(LF,[],1);
 % LineFail2 = LineFail;
 LineFail(LF(LF~=0),:) = 1;
 LineStrengths(LineFail) = 0;
-
-% Isolate the anchors connected to lines that fail independently
-IndLineFails = IndLineFails(~ismember(IndLineFails, AnchLineFails));
-if ~isempty(IndLineFails) % non-failed anchors associated with failed lines
-    [IndAnchs,~] = find(ismember(ALC, IndLineFails));
-else
-    IndAnchs = [];
-end
 
 %Next, update the turbine failure state and indicate if a turbine has
 %failed

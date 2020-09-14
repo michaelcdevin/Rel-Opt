@@ -6,8 +6,9 @@ clear
 clc
 
 %% Optimization parameters
-pop_size = 10; % population size
+pop_size = 100; % population size
 num_osf_increments = 20; % 1.05:.05:2 by default
+num_uniform_osf_configs = 40; % configs with random anchor selection, but singular OSF selection
 cross_ptg = .7; % crossover percentage
 clone_ptg = .1; % cloning percentage
 kill_ptg = .2; % kill percentage
@@ -18,6 +19,7 @@ max_gen = 10000; % extra rows preallocated for tracker variables
 tracker_reset = 50; % number of generations before storing and reseting tracker variables
 
 osf_increments = linspace(1.05, 2, num_osf_increments)';
+uniform_configs_per_osf = floor(num_uniform_osf_configs/(num_osf_increments/2));
 num_children = round(cross_ptg * pop_size);
 num_clones = round(clone_ptg * pop_size);
 num_killed = round(kill_ptg * pop_size);
@@ -83,12 +85,26 @@ while ~converged
     % Rows are different anchors, columns are different OSFs, pages are
     % different organisms.
 
-    % For first generation, seed initial configurations, and fill the rest
-    % of the population with random configurations
+    % For first generation, seed initial configurations...
     if gen == 1
         current_gen(:,:,1:num_seeded_configs) = seeded_configs;
         clear seeded_configs
-        for j = num_seeded_configs+1:pop_size
+        
+        % ... then add random configurations with uniform OSFs...
+        osf_counter = 0;
+        current_osf_idx = 2;
+        for j = num_seeded_configs+1:num_seeded_configs+num_uniform_osf_configs
+            current_gen(:,:,j) =...
+                create_config(num_anchs, num_osf_increments, 'uniform', current_osf_idx);
+            osf_counter = osf_counter + 1;
+            if osf_counter == uniform_configs_per_osf
+                current_osf_idx = current_osf_idx + 2;
+                osf_counter = 0;
+            end
+        end
+        
+        % ... then add random configurations with random OSFs.
+        for j = num_seeded_configs+num_uniform_osf_configs+1:pop_size
             current_gen(:,:,j) = create_config(num_anchs, num_osf_increments);
         end
         
@@ -96,7 +112,7 @@ while ~converged
     % from last generation
     else
         current_gen(:,:,1:num_children+num_clones) = next_gen;
-        % Fill remaining population with random configurations
+        % Fill remaining population with random configurations + OSFs
         for j = num_children + num_clones + 1:pop_size
             current_gen(:,:,j) = create_config(num_anchs, num_osf_increments);
         end
