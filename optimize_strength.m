@@ -41,10 +41,11 @@ num_anchs = FindAnchors(rows, cols, turb_spacing, turb_anch_distance, num_turbs)
 %% Preallocate matrices
 % The data type specifications are due to memory space issues if default.
 current_gen = zeros(num_anchs, num_osf_increments, pop_size, 'uint8');
+current_gen_stats = zeros(num_anchs, 2, pop_size, 'uint8'); % [strengthened_anch_num, osf_idx]
 next_gen = zeros(num_anchs, num_osf_increments, num_children + num_clones, 'uint8');
 gen_archive_idxs = zeros(pop_size, 1, 'uint32');
 gen_config_occurrences = cell(pop_size, 1);
-stored_configs = zeros(num_anchs, num_osf_increments, archive_length, 'uint8');
+stored_configs = zeros(num_anchs, 2, archive_length, 'uint8');
 stored_costs = zeros(archive_length, 1, 'single');
 stored_num_sims = zeros(archive_length, 1, 'uint32');
 gen_stored_costs = zeros(pop_size, 1, 'single');
@@ -75,7 +76,7 @@ num_convergence_gens = 100; % # of generations the optima must remain unchanged 
 gens_as_best = 0; % # of generation the optima has remained unchanged
 num_tracker_files = 0;
 
-while ~converged
+for temptime = 1:5
     gen = gen + 1; %increment generation counter
     if gen == max_gen % hard stop loop in case it can't converge
         converged = 1;
@@ -121,8 +122,12 @@ while ~converged
     % Find members of population stored in archive, and get the archive
     % data for the population.
     for j = 1:pop_size
+        [anchs, osf_idxs] = find(current_gen(:,:,j));
+        config_stats = [anchs osf_idxs];
+        current_gen_stats(:,:,j) = [config_stats; zeros(num_anchs-size(config_stats,1), 2)];
+        
         % Search archives to see if config has been encountered before
-        archive_idx = find(all(current_gen(:,:,j)==stored_configs, [1 2]));
+        archive_idx = find(all(current_gen_stats(:,:,j)==stored_configs, [1 2]));
         % Config is not in archive
         if isempty(archive_idx)
             gen_archive_idxs(j) = 0;
@@ -186,9 +191,9 @@ while ~converged
     tracker.min_cost(gen-(num_tracker_files*tracker_reset)) = min_cost;
     tracker.gen_min_cost(gen-(num_tracker_files*tracker_reset)) = gen_min_cost;
     tracker.best_config(:, :, gen-(num_tracker_files*tracker_reset)) =...
-        [best_config; zeros(num_anchs-length(best_config), 2)];
+        [best_config; zeros(num_anchs-size(best_config,1), 2)];
     tracker.gen_best_config(:, :, gen-(num_tracker_files*tracker_reset)) =...
-        [gen_best_config; zeros(num_anchs-length(gen_best_config), 2)];
+        [gen_best_config; zeros(num_anchs-size(gen_best_config,1), 2)];
     
     % Determine if problem is considered optimized.
     if gens_as_best >= num_convergence_gens
@@ -212,7 +217,7 @@ while ~converged
                 % add a new archive entry (this happens the vast majority of
                 % the time)
                     new_archive_idx = new_archive_idx + 1;
-                    stored_configs(:,:,new_archive_idx) = current_gen(:,:,j);
+                    stored_configs(:,:,new_archive_idx) = current_gen_stats(:,:,j);
                     stored_costs(new_archive_idx) = gen_costs(j);
                     stored_num_sims(new_archive_idx) = num_sims;
                 
@@ -220,7 +225,7 @@ while ~converged
                 % if there are other identical configs in current_gen,
                 % create one new archive entry that covers all of them.
                     new_archive_idx = new_archive_idx + 1;
-                    stored_configs(:,:,new_archive_idx) = current_gen(:,:,j);
+                    stored_configs(:,:,new_archive_idx) = current_gen_stats(:,:,j);
                     stored_costs(new_archive_idx) = mean(gen_costs(gen_config_occurrences{j}));
                     stored_num_sims(new_archive_idx) = num_sims * length(gen_config_occurrences{j});
                 end
