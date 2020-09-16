@@ -76,7 +76,7 @@ num_convergence_gens = 100; % # of generations the optima must remain unchanged 
 gens_as_best = 0; % # of generation the optima has remained unchanged
 num_tracker_files = 0;
 
-for temptime = 1:5
+while ~converged
     gen = gen + 1; %increment generation counter
     if gen == max_gen % hard stop loop in case it can't converge
         converged = 1;
