@@ -45,9 +45,6 @@ current_gen_stats = zeros(num_anchs, 2, pop_size, 'uint8'); % [strengthened_anch
 next_gen = zeros(num_anchs, num_osf_increments, num_children + num_clones, 'uint8');
 gen_archive_idxs = zeros(pop_size, 1, 'uint32');
 gen_config_occurrences = cell(pop_size, 1);
-stored_configs = zeros(num_anchs, 2, archive_length, 'uint8');
-stored_costs = zeros(archive_length, 1, 'single');
-stored_num_sims = zeros(archive_length, 1, 'uint32');
 gen_stored_costs = zeros(pop_size, 1, 'single');
 gen_stored_num_sims = zeros(pop_size, 1, 'uint32');
 gen_costs = zeros(pop_size, 1, 'single');
@@ -57,6 +54,16 @@ tracker = struct('best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
        'min_cost', zeros(tracker_reset, 1, 'single'),...
        'gen_min_cost', zeros(tracker_reset, 1, 'single'));
 tracker_filenames = strings(round(max_gen/tracker_reset), 1);
+
+%% Connect to archive database, create SQL function, and create archive
+conn = database('PostgreSQL30', 'postgres', 'RAM is fucking stupid');
+create_sql_function(conn);
+dummy_data = zeros(1,3);
+dummy_table = array2table(dummy_data, 'VariableNames', {'id', 'cost', 'sims'});
+column_types = ["int primary key" "numeric" "numeric"];
+sqlwrite(conn, 'archive', dummy_table, 'ColumnType', column_types);
+fetch(conn, 'truncate archive');
+clear dummy_data dummy_table
 
 %% Load seeded configurations
 seeding_file = 'seeded_configs_10x10.mat';
@@ -121,27 +128,15 @@ while ~converged
     
     % Find members of population stored in archive, and get the archive
     % data for the population.
-    for j = 1:pop_size
-        [anchs, osf_idxs] = find(current_gen(:,:,j));
-        config_stats = [anchs osf_idxs];
-        current_gen_stats(:,:,j) = [config_stats; zeros(num_anchs-size(config_stats,1), 2)];
-        
-        % Search archives to see if config has been encountered before
-        archive_idx = find(all(current_gen_stats(:,:,j)==stored_configs, [1 2]));
-        % Config is not in archive
-        if isempty(archive_idx)
-            gen_archive_idxs(j) = 0;
-            gen_stored_costs(j) = 0;
-            gen_stored_num_sims(j) = 0;
-        else
-            gen_archive_idxs(j) = archive_idx;
-            gen_stored_costs(j) = stored_costs(gen_archive_idxs(j));
-            gen_stored_num_sims(j) = stored_num_sims(gen_archive_idxs(j));
+    if gen > 1
+        for j = 1:pop_size
+            [gen_archive_idxs(j), gen_stored_costs(j), gen_stored_num_sims(j)] =...
+                query_archive(conn, current_gen(:,:,j));
+
+            % Find repeat configs in population. This is important for
+            % crossover later on.
+            gen_config_occurrences{j} = find(all(current_gen(:,:,j)==current_gen, [1 2]));
         end
-        
-        % Find repeat configs in population. This is important for
-        % crossover later on.
-        gen_config_occurrences{j} = find(all(current_gen(:,:,j)==current_gen, [1 2]));
     end
     
     %% Evaluate population
@@ -217,25 +212,22 @@ while ~converged
                 % add a new archive entry (this happens the vast majority of
                 % the time)
                     new_archive_idx = new_archive_idx + 1;
-                    stored_configs(:,:,new_archive_idx) = current_gen_stats(:,:,j);
-                    stored_costs(new_archive_idx) = gen_costs(j);
-                    stored_num_sims(new_archive_idx) = num_sims;
+                    add_archive_entry(conn, new_archive_idx, current_gen(:,:,j), gen_costs(j), num_sims);
                 
                 elseif length(gen_config_occurrences{j}) > 1 
                 % if there are other identical configs in current_gen,
                 % create one new archive entry that covers all of them.
                     new_archive_idx = new_archive_idx + 1;
-                    stored_configs(:,:,new_archive_idx) = current_gen_stats(:,:,j);
-                    stored_costs(new_archive_idx) = mean(gen_costs(gen_config_occurrences{j}));
-                    stored_num_sims(new_archive_idx) = num_sims * length(gen_config_occurrences{j});
+                    new_cost = mean(gen_costs(gen_config_occurrences{j}));
+                    new_num_sims = num_sims * length(gen_config_occurrences{j});
+                    add_archive_entry(conn, new_archive_idx, current_gen(:,:,j), new_cost, new_num_sims);
                 end
             end
         
         % if config is in archive, update archive values
         elseif gen_archive_idxs(j) > 0
-            stored_costs(gen_archive_idxs(j)) = gen_costs(j);
-            stored_num_sims(gen_archive_idxs(j)) =...
-                stored_num_sims(gen_archive_idxs(j)) + num_sims/2;
+            new_num_sims = gen_stored_num_sims(j) + num_sims/2;
+            update_archive_entry(conn, gen_archive_idxs(j), gen_costs(j), new_num_sims);
         end
     end
     
@@ -343,3 +335,7 @@ final_tracker.gen_best_config(:,:,idx:idx+size(tracker.gen_best_config,3)-1) = t
 final_tracker.min_cost(idx:idx+length(tracker.min_cost)-1) = tracker.min_cost;
 final_tracker.gen_min_cost(idx:idx+length(tracker.gen_min_cost)-1) = tracker.gen_min_cost;
 save(final_tracker_filename, 'final_tracker')
+
+%% Database cleanup and disconnect
+fetch(conn, 'drop schema public cascade; create schema public;');
+close(conn);
