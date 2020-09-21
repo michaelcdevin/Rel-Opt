@@ -55,14 +55,9 @@ tracker = struct('best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
        'gen_min_cost', zeros(tracker_reset, 1, 'single'));
 tracker_filenames = strings(round(max_gen/tracker_reset), 1);
 
-%% Connect to archive database, create SQL function, and create archive
+%% Connect to archive database and create tables
 conn = database('PostgreSQL30', 'postgres', 'RAM is fucking stupid');
-dummy_data = zeros(1,3);
-dummy_table = array2table(dummy_data, 'VariableNames', {'id', 'cost', 'sims'});
-column_types = ["int primary key" "numeric" "numeric"];
-sqlwrite(conn, 'archive', dummy_table, 'ColumnType', column_types);
-fetch(conn, 'truncate archive');
-clear dummy_data dummy_table
+create_database_tables(conn, num_anchs, num_osf_increments);
 
 %% Load seeded configurations
 seeding_file = 'seeded_configs_10x10.mat';

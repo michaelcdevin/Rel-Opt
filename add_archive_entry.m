@@ -8,10 +8,7 @@ function [] = add_archive_entry(conn, archive_idx, config, cost, num_sims)
     sqlwrite(conn, 'archive', new_entry)
     
     % Add new config table to database
-    [anchs, osfs] = find(config);
-    anchs = uint8(anchs);
-    osfs = uint8(osfs);
-    config_stats = [anchs osfs];
-    column_names = {'anch', 'osf'};
-    new_config_table = array2table(config_stats, 'VariableNames', column_names);
-    sqlwrite(conn, ['config_', num2str(archive_idx)], new_config_table)
+    reshaped_config = reshape(config, 1, []);
+    config_string = strjoin(string(reshaped_config),'');
+    config_table = table(archive_idx, config_string, 'VariableNames', {'id', 'config'});
+    sqlwrite(conn, 'configs', config_table);
