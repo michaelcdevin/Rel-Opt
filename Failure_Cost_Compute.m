@@ -1,6 +1,7 @@
 function[cost] =...
     Failure_Cost_Compute(AnchorsOverstrengthened, OverstrengthFactors,...
-    NRows, NCols, DefaultTurbSpacing, DesignType, NSims, theta)
+    NRows, NCols, DefaultTurbSpacing, DesignType, NSims, theta,...
+    Displacements, Res, downtime_lengths, prob_of_12hr_window)
 
 % Reliability_Compute determines the reliability of a multiline FOWT system
 % Spencer Hallowell, UMASS Amherst, 3/8/2018
@@ -23,15 +24,15 @@ AnchPricePerTon = 12300; % USD
 
 %% Load in results of FAST analyses. These matrices will have distribution
 %  Parameters (LN and Normal distributions) for anchor and line forces.
-R = load(['ReliabilityResultsLN_Final,',num2str(theta),'deg.mat']);
-Res = R.Res;
+%R = load(['ReliabilityResultsLN_Final,',num2str(theta),'deg.mat']);
+%Res = R.Res;
 
 %% Load in results from site metocean analysis.
-downtime_lengths = readmatrix('downtime_lengths_12hr.csv');
-prob_of_12hr_window = readmatrix('prob_of_12hr_window.txt');
+%downtime_lengths = readmatrix('downtime_lengths_12hr.csv');
+%prob_of_12hr_window = readmatrix('prob_of_12hr_window.txt');
 
 %% Load in displacements of turbines in failed configurations
-load(['Surge_',num2str(theta),'deg.mat'])
+%load(['Surge_',num2str(theta),'deg.mat'])
 
 % Allocate displacements in a matrix.
 D(1,1) = Displacements(1).Surge;

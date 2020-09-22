@@ -50,15 +50,14 @@ stored_costs = zeros(archive_length, 1, 'single');
 stored_num_sims = zeros(archive_length, 1, 'uint32');
 gen_stored_costs = zeros(pop_size, 1, 'single');
 gen_stored_num_sims = zeros(pop_size, 1, 'uint32');
-gen_costs = zeros(pop_size, 1, 'single');
-gen_costs_enum = zeros(pop_size, 2, 'single');
+
 tracker = struct('best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
        'gen_best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
        'min_cost', zeros(tracker_reset, 1, 'single'),...
        'gen_min_cost', zeros(tracker_reset, 1, 'single'));
 tracker_filenames = strings(round(max_gen/tracker_reset), 1);
 
-%% Load seeded configurations
+%% Load seeded configurations and downtime stats
 seeding_file = 'seeded_configs_10x10.mat';
 seeded_configs = importdata(seeding_file);
 num_seeded_configs = size(seeded_configs,3);
@@ -68,6 +67,14 @@ if num_seeded_configs > pop_size
     num_seeded_configs = pop_size;
 end
 
+downtime_lengths = readmatrix('downtime_lengths_12hr.csv');
+prob_of_12hr_window = readmatrix('prob_of_12hr_window.txt');
+
+%% Load FAST data for evaluation
+R = load(['ReliabilityResultsLN_Final,',num2str(theta),'deg.mat']);
+Res = R.Res;
+load(['Surge_',num2str(theta),'deg.mat'])
+
 %% Start GA loop
 converged = 0;
 new_archive_idx = 0; % index of archive variables to add new config information
@@ -75,12 +82,15 @@ gen = 0; % generation counter
 num_convergence_gens = 100; % # of generations the optima must remain unchanged before considered converged
 gens_as_best = 0; % # of generation the optima has remained unchanged
 num_tracker_files = 0;
-
+parpool('threads')
 while ~converged
     gen = gen + 1; %increment generation counter
     if gen == max_gen % hard stop loop in case it can't converge
         converged = 1;
     end
+    
+    gen_costs = zeros(pop_size, 1, 'single');
+    gen_costs_enum = zeros(pop_size, 2, 'single'); %moved here since I think it could be causing a memory leak in parfor?
     
     %% Create population
     % Rows are different anchors, columns are different OSFs, pages are
@@ -145,19 +155,18 @@ while ~converged
     end
     
     %% Evaluate population
-
     parfor j = 1:pop_size
         gen_costs(j) =...
             evaluate_config(current_gen(:,:,j), rows, cols, turb_spacing,...
             design_type, num_sims, theta, osf_increments,...
-            gen_stored_costs(j), gen_stored_num_sims(j));
+            gen_stored_costs(j), gen_stored_num_sims(j),...
+            Displacements, Res, downtime_lengths, prob_of_12hr_window);
         
         % gen_costs is enumerated so costs can be ranked without losing the
         % link to the respective configurations
         gen_costs_enum(j, :) = [j, gen_costs(j)];
         
     end
-    
     % Sort costs from best to worst
     gen_costs_enum_sorted = sortrows(gen_costs_enum, 2);
     
@@ -302,8 +311,10 @@ while ~converged
            'min_cost', zeros(tracker_reset, 1, 'single'),...
            'gen_min_cost', zeros(tracker_reset, 1, 'single')); %reset tracker
     end
-            
-
+    
+    clear gen_costs
+    clear gen_costs_enum
+    
 end
 
 %% After the algorithm converges, export data
