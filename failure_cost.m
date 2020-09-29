@@ -21,11 +21,11 @@ turb_capacity_factor = .44;
 ahts_transit_time_notow = 3; % hours (each way, but only consider trip there for downtime)
 ahts_transit_time_tow = 10; % hours
 anchor_repair_time = 14; % hours
-turb_reconnect_time = 4; % hours
+turb_reconnect_time = 4; % hours (!!!QUINTUPLE FOR PROFILE C!!!)
 cable_laying_rate = 400; % m/day
-turb_quayside_time = 168; % hours
-quayside_material_cost = 10200; % $
-quayside_repair_cost = 109985; % $ (for a week's worth of work)
+turb_quayside_time = 168; % hours (!!!QUINTUPLE FOR PROFILE C!!!)
+quayside_material_cost = 10200; % $ (!!!QUINTUPLE FOR PROFILE C!!!)
+quayside_repair_cost = 109985; % $ (for a week's worth of work) (!!!QUINTUPLE FOR PROFILE C!!!)
 
 
 % Identify which anchors and lines failed in the simulation
@@ -90,8 +90,8 @@ total_power_loss_cost = LCOE * avg_offline_turbs *...
     (max_turbine_power_output * turb_capacity_factor) *...
     num_cable_rows_affected * total_site_repair_time;
 
-%%%% TEMPORARY!!!!!!!!! Triple substructure repair costs for sensitivity tests
-total_substructure_repair_cost = total_substructure_repair_cost * 3;
+%%% !!! FOR PROFILE B UNCOMMENT THE NEXT LINE !!!
+%total_substructure_repair_cost = total_substructure_repair_cost * 3;
 
 % Calculate total failure cost
 failure_cost = anchor_material_cost + line_material_cost +...
