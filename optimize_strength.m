@@ -9,13 +9,13 @@ clc
 pop_size = 100; % population size
 num_osf_increments = 20; % 1.05:.05:2 by default
 num_uniform_osf_configs = 40; % configs with random anchor selection, but singular OSF selection
-cross_ptg = .65; % crossover percentage
-clone_ptg = .35; % cloning percentage
-kill_ptg = .1; % kill percentage
-mut_ptg = .05; % mutation percentage (number of individuals mutated)
+cross_ptg = .7; % crossover percentage
+clone_ptg = .1; % cloning percentage
+kill_ptg = .2; % kill percentage
+mut_ptg = .1; % mutation percentage (number of individuals mutated)
 mut_rate = .1; % mutation rate (mutated genes per mutated individual)
 archive_length = 500000; % extra rows preallocated for archival variables
-max_gen = 2000; % extra rows preallocated for tracker variables
+max_gen = 5000; % extra rows preallocated for tracker variables
 tracker_reset = 50; % number of generations before storing and reseting tracker variables
 
 osf_increments = linspace(1.05, 2, num_osf_increments)';
@@ -58,7 +58,7 @@ tracker = struct('best_config', zeros(num_anchs, 2, tracker_reset, 'single'),...
 tracker_filenames = strings(round(max_gen/tracker_reset), 1);
 
 %% Load seeded configurations and downtime stats
-seeding_file = 'seeded_configs_extension_test.mat';
+seeding_file = 'seeded_configs_10x10.mat';
 seeded_configs = importdata(seeding_file);
 num_seeded_configs = size(seeded_configs,3);
 % truncate the number of seeded configs if it's larger than pop_size
