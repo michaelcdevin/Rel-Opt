@@ -1,4 +1,6 @@
 # Rel-Opt
+[![DOI](https://zenodo.org/badge/228912373.svg)](https://zenodo.org/badge/latestdoi/228912373)
+
 This repository is focused on comparing the system reliability and costs associated with an anchor sharing system.
 
 See "Optimizing Strength of Shared Anchors in an Array of Floating Offshore Wind Turbines" for information related to the details of the functionality of this code.
