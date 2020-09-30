@@ -5,11 +5,8 @@ function[LineFail,AnchorFail,TurbFail,LineStrengths,AnchorStrengths,...
 
 %% Start with line failures
 LineFail = LineDemands >= LineStrengths;
-% Set failed line capacities equal to zero so that they continue to fail
-
 
 %% Next, find anchor failures
-% disp(['AnchorDemands: ',num2str(size(AnchorDemands))])
 AnchorFail = AnchorDemands >= AnchorStrengths;
 % Set failed anchor capacities equal to zero so that they continue to be
 % failed

@@ -1,4 +1,4 @@
-function[ChainStrengths,AnchorStrengths] =...
+function[ChainStrengths,AnchorStrengths, MfgAnchorStrengths, NormalMfgStrength] =...
     Capacity_Setup_Full_Line(NTurbs,NAnchs,NumSamples,...
     SegNum,Res,dtype,Asingle,Amulti)
 
@@ -79,3 +79,9 @@ Multi_AnchorStrengths = lognrndFAST(Multi_mu,Multi_sigma,length(Amulti),NumSampl
 AnchorStrengths = zeros(NAnchs,1);
 AnchorStrengths(Asingle) = Single_AnchorStrengths;
 AnchorStrengths(Amulti) = Multi_AnchorStrengths;
+
+% @mcd: THIS SECTION IS NOT CURRENTLY VALID FOR EXACT MULTI DESIGNTYPE!!!
+% To make the math easier later on, MfgAnchorStrengths is in kN, while
+% AnchorStrengths is in N
+MfgAnchorStrengths = ones(NAnchs,1) * MultiMeanAnchor / 1000;
+NormalMfgStrength = MultiMeanAnchor / 1000;
