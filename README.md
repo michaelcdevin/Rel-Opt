@@ -1,7 +1,7 @@
 # Rel-Opt
 This repository is focused on comparing the system reliability and costs associated with an anchor sharing system.
 
-See {"Optimizing Strength of Shared Anchors in an Array of Floating Offshore Wind Turbines"}(engrxiv.org link) for information related to the details of the functionality of this code.
+See "Optimizing Strength of Shared Anchors in an Array of Floating Offshore Wind Turbines" for information related to the details of the functionality of this code.
 
 ## Installation
 Download this repository directly to the local machine. Running this code requires [MATLAB 2020a](https://www.mathworks.com/downloads) or higher.
@@ -34,6 +34,5 @@ Running **create_seeded_config_images.m** generates the graphics in Table 3 of t
 
 Running **config_visualizer.m** generates graphics similar to those in Table 8 of the paper.
 
-
-** Other notes
-PDFs of all figures and graphics in the paper are available at xxxx under a CC-BY license.
+## Other Notes
+PDFs of all figures and graphics in the paper are available at [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4059094.svg)](https://doi.org/10.5281/zenodo.4059094) under a CC-BY license.
