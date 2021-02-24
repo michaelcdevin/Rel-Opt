@@ -3,7 +3,7 @@
 
 This repository is focused on comparing the system reliability and costs associated with an anchor sharing system.
 
-See "Optimizing Strength of Shared Anchors in an Array of Floating Offshore Wind Turbines" for information related to the details of the functionality of this code.
+See "Optimizing the Cost and Reliability of Shared Anchors in an Array of Floating Offshore Wind Turbines" for information related to the details of the functionality of this code.
 
 ## Installation
 Download this repository directly to the local machine. Running this code requires [MATLAB 2020a](https://www.mathworks.com/downloads) or higher.
